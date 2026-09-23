@@ -27,7 +27,7 @@
     aside { overflow: visible !important; }
   }
   /* Ceo kadar uvek staje u prozor: širina se smanjuje kad bi visina prešla ekran. */
-  .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 150px) * 1.5)); min-width: 0; margin: 0 auto; flex: 0 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
+  .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 50px) * 1.5)); min-width: 0; margin: 0 auto; flex: 0 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
   .prikaz { position: relative; }
   .prikaz img { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; }
   .prikaz img.flip { transform: scaleX(-1); }
@@ -45,9 +45,9 @@
   #bioskop { position: fixed; inset: 0; background: #000e; display: none; place-items: center; z-index: 10; padding: 16px; }
   #bioskop video { max-width: 100%; max-height: 90vh; }
   #bioskop button { position: fixed; top: 12px; right: 16px; }
-  #pregledFotografije { width: min(100%, calc((100vh - 150px) * 1.5)); margin: 0 auto; scroll-margin-top: 12px; }
+  #pregledFotografije { width: min(100%, calc((100vh - 50px) * 1.5)); margin: 0 auto; scroll-margin-top: 12px; }
   #pregledFotografije[hidden] { display: none; }
-  #slikaPregleda { display: block; width: 100%; max-height: min(70vh, 760px); object-fit: contain; }
+  #slikaPregleda { display: block; width: 100%; max-height: calc(100vh - 50px); object-fit: contain; }
   #serijaKontrole { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 9px; border: 1px solid #333; border-radius: 7px; }
   #serijaKontrole label { display: flex; flex-direction: column; align-items: stretch; gap: 3px; margin: 0; color: var(--sivo); font-size: 12px; }
   #serijaKontrole input { width: 100%; padding: 6px; background: #111; color: var(--tekst); border: 1px solid #444; border-radius: 4px; font: inherit; }
@@ -258,6 +258,7 @@ function postaviGalerijuSakrivenu(sakrivena) {
   dugme.textContent = sakrivena ? '▶ Prikaži galeriju' : '◀ Sakrij galeriju';
   dugme.setAttribute('aria-expanded', String(!sakrivena));
   localStorage.setItem('sakrijGaleriju', sakrivena ? 'da' : 'ne');
+  requestAnimationFrame(() => osveziRezolucijuPregleda());
 }
 
 postaviGalerijuSakrivenu(localStorage.getItem('sakrijGaleriju') === 'da');
@@ -298,6 +299,7 @@ function postaviPanelSakriven(sakriven) {
     $('aside').prepend(komande);
   }
   localStorage.setItem('sakrijDesniPanel', sakriven ? 'da' : 'ne');
+  requestAnimationFrame(() => osveziRezolucijuPregleda());
 }
 
 postaviPanelSakriven(localStorage.getItem('sakrijDesniPanel') === 'da');
