@@ -43,7 +43,7 @@
   .glavni-red > button, .glavni-red > select { width: 100%; min-width: 0; }
   .glavni-red .razmak { display: none; }
   .rezim { display: flex; }
-  .rezim, #format, #okidac, #vreme, #dugmePogledaj, #dugmeAf { grid-column: 1 / -1; }
+  .rezim, #format, #okidac, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
   #vreme:empty { display: none; }
   .rezim button { flex: 1; }
   .rezim button { border-radius: 0; }
@@ -136,11 +136,11 @@
       <span id="vreme"></span>
       <button id="dugmePogledaj" class="glavno" hidden>Pogledaj na Mac-u</button>
       <button class="glavno" id="dugmeAf">◎ Izoštri</button>
+      <button id="osvezi" style="margin-top:6px">↻ Osveži vezu</button>
     </div>
     <section>
       <h2>Podešavanja</h2>
       <div id="podesavanja"><span style="color:var(--sivo)">Učitavam…</span></div>
-      <button id="osvezi" style="margin-top:6px">↻ Osveži vezu</button>
     </section>
   </aside>
 </main>
