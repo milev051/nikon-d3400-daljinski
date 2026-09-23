@@ -83,11 +83,11 @@
   .galerija .traka .info { color: var(--sivo); font-size: 12px; width: 100%; }
   .galerija .traka label { display: flex; grid-template-columns: none; margin: 0; gap: 6px; color: var(--sivo); font-size: 12px; }
   .galerija .traka button { padding: 8px 9px; font-size: 12px; }
-  #mreza { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; min-height: 0; flex: 1; overflow-y: auto; align-content: start; padding-right: 3px; }
+  #mreza { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; min-height: 0; flex: 1; overflow-y: scroll; overflow-x: hidden; overscroll-behavior: contain; align-content: start; padding-right: 3px; }
   .plocica { position: relative; background: var(--pov); border: 2px solid transparent; border-radius: 6px; overflow: hidden; cursor: pointer; user-select: none; }
   .plocica:hover { border-color: #444; }
   .plocica.izabrana { border-color: var(--akcent); }
-  .plocica .slika { position: relative; width: 100%; aspect-ratio: 3 / 2; background: #0a0a0a; display: grid; place-items: center; color: var(--sivo); font-size: 13px; overflow: hidden; }
+  .plocica .slika { position: relative; width: 100%; min-height: 110px; aspect-ratio: 3 / 2; background: #0a0a0a; display: grid; place-items: center; color: var(--sivo); font-size: 13px; overflow: hidden; }
   .plocica .slika img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
   .plocica .opis { padding: 6px 8px; font-size: 12px; display: flex; justify-content: space-between; gap: 6px; color: var(--sivo); }
   .plocica .opis b { color: var(--tekst); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
