@@ -14,6 +14,8 @@
   .radni.galerija-sakrivena { grid-template-columns: minmax(0, 1fr); }
   .radni.galerija-sakrivena > .galerija { display: none; }
   main { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; padding: 0; align-items: stretch; min-width: 0; min-height: 0; }
+  main.panel-sakriven { grid-template-columns: minmax(0, 1fr); }
+  main.panel-sakriven > aside { display: none; }
   .kamera { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: 0; }
   @media (max-width: 1100px) { .radni { grid-template-columns: 270px minmax(0, 1fr); } main { grid-template-columns: minmax(0, 1fr) 230px; } }
   @media (max-width: 900px) {
@@ -44,10 +46,14 @@
   .glavni-red > button, .glavni-red > select { width: 100%; min-width: 0; }
   .glavni-red .razmak { display: none; }
   #dugmeGalerija, #format, #dugmeVodic, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
+  #dugmePanel { grid-column: 1 / -1; }
   #vreme:empty { display: none; }
   .status-aparata { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; color: var(--sivo); font-size: 13px; }
   .status-aparata b { color: var(--akcent); }
   .akcija-snimanja { display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--sivo); font-size: 12px; }
+  #akcijeSnimanja { grid-column: 1 / -1; display: flex; justify-content: center; gap: 24px; }
+  #akcijeSnimanja.plutajuce { position: fixed; z-index: 20; right: 20px; bottom: 20px; padding: 10px 16px; background: #111e; border: 1px solid #555; border-radius: 12px; box-shadow: 0 4px 20px #0009; backdrop-filter: blur(8px); }
+  #dugmePanelVrati { position: fixed; z-index: 21; top: 14px; right: 14px; }
   .okidac { justify-self: center; width: 64px !important; height: 64px; border-radius: 50%; padding: 0; border: 4px solid var(--tekst); background: transparent; display: grid; place-items: center; }
   .okidac::after { content: ''; width: 48px; height: 48px; border-radius: 50%; background: var(--tekst); transition: all .15s; }
   .okidac.video::after { background: #e33; }
@@ -117,17 +123,19 @@
       <span id="status">Tražim aparat…</span>
       <span id="baterija"></span>
     </section>
-    <div class="kontrole glavni-red">
+    <div class="kontrole glavni-red" id="kontrole">
       <button id="dugmeGalerija" aria-expanded="true">◀ Sakrij galeriju</button>
       <button id="dugmePrikaz">Uključi živi prikaz</button>
       <button id="dugmePusti" title="Prekida vezu, da dugmad na aparatu rade">⏏ Pusti</button>
-      <div class="akcija-snimanja">
-        <button id="dugmeFoto" class="okidac" title="Slikaj" aria-label="Slikaj"></button>
-        <span>Slikaj</span>
-      </div>
-      <div class="akcija-snimanja">
-        <button id="dugmeVideo" class="okidac video" title="Počni snimanje" aria-label="Počni snimanje"></button>
-        <span id="oznakaDugmetaVidea">Snimi video</span>
+      <div id="akcijeSnimanja">
+        <div class="akcija-snimanja">
+          <button id="dugmeFoto" class="okidac" title="Slikaj" aria-label="Slikaj"></button>
+          <span>Slikaj</span>
+        </div>
+        <div class="akcija-snimanja">
+          <button id="dugmeVideo" class="okidac video" title="Počni snimanje" aria-label="Počni snimanje"></button>
+          <span id="oznakaDugmetaVidea">Snimi video</span>
+        </div>
       </div>
       <select id="format" title="Format kadra za video">
         <option value="1.7778">16:9 (FHD)</option>
@@ -140,6 +148,7 @@
       <button id="dugmePogledaj" class="glavno" hidden>Pogledaj na Mac-u</button>
       <button class="glavno" id="dugmeAf">◎ Izoštri</button>
       <button id="osvezi" style="margin-top:6px">↻ Osveži vezu</button>
+      <button id="dugmePanel">⤢ Sakrij desni panel</button>
     </div>
     <section>
       <h2>Podešavanja</h2>
@@ -148,6 +157,7 @@
   </aside>
 </main>
 </div>
+<button id="dugmePanelVrati" hidden>⚙ Prikaži panel</button>
 
 <div id="poruka"></div>
 <div id="bioskop"><button>Zatvori</button><video controls autoplay playsinline></video></div>
@@ -171,6 +181,27 @@ postaviGalerijuSakrivenu(localStorage.getItem('sakrijGaleriju') === 'da');
 $('#dugmeGalerija').onclick = () => {
   postaviGalerijuSakrivenu(!$('.radni').classList.contains('galerija-sakrivena'));
 };
+
+function postaviPanelSakriven(sakriven) {
+  const glavni = $('main');
+  const dock = $('#akcijeSnimanja');
+  const dugmeVrati = $('#dugmePanelVrati');
+  glavni.classList.toggle('panel-sakriven', sakriven);
+  if (sakriven) {
+    document.body.append(dock);
+    dock.classList.add('plutajuce');
+    dugmeVrati.hidden = false;
+  } else {
+    dock.classList.remove('plutajuce');
+    $('#kontrole').insertBefore(dock, $('#format'));
+    dugmeVrati.hidden = true;
+  }
+  localStorage.setItem('sakrijDesniPanel', sakriven ? 'da' : 'ne');
+}
+
+postaviPanelSakriven(localStorage.getItem('sakrijDesniPanel') === 'da');
+$('#dugmePanel').onclick = () => postaviPanelSakriven(true);
+$('#dugmePanelVrati').onclick = () => postaviPanelSakriven(false);
 
 function postaviVodic(aktivan) {
   vodicAktivan = aktivan;
