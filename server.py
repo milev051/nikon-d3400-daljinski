@@ -18,10 +18,9 @@ import gphoto2 as gp
 
 KOREN = Path(__file__).parent
 SNIMCI = KOREN / "snimci"
-PROVERE = SNIMCI / "provere"
 PREGLEDI = SNIMCI / "pregled"
 SLICICE = SNIMCI / ".slicice"
-PODFOLDERI = {"provere": PROVERE, "pregled": PREGLEDI}
+PODFOLDERI = {"provere": SNIMCI / "provere", "pregled": PREGLEDI}
 TIPOVI = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -34,9 +33,6 @@ PORT = 8400
 # Pretpostavka za D3400, proveriti na aparatu i ispraviti ako tačka promašuje.
 SIRINA_KADRA = 6000
 VISINA_KADRA = 4000
-
-# Moguća imena podešavanja za zum živog prikaza, zavise od verzije libgphoto2.
-ZUM_PODESAVANJA = ["liveviewimagezoomratio", "liveviewzoomratio"]
 
 # Podešavanja koja se prikazuju u interfejsu, ako ih aparat podržava.
 PODESAVANJA = [
@@ -149,28 +145,8 @@ class Aparat:
 
         return self.izvrsi(radnja)
 
-    def zum(self, nivo):
-        """Uvećava živi prikaz aparata. Nivo 0 je ceo kadar."""
-
-        def radnja(k):
-            for ime in ZUM_PODESAVANJA:
-                try:
-                    vidzet = k.get_single_config(ime)
-                except gp.GPhoto2Error:
-                    continue
-                izbor = [vidzet.get_choice(i) for i in range(vidzet.count_choices())]
-                if not izbor:
-                    continue
-                nivo_ogranicen = max(0, min(int(nivo), len(izbor) - 1))
-                vidzet.set_value(izbor[nivo_ogranicen])
-                k.set_single_config(ime, vidzet)
-                return {"nivo": nivo_ogranicen, "najveci": len(izbor) - 1, "vrednost": izbor[nivo_ogranicen]}
-            raise RuntimeError("Aparat ne podržava zum živog prikaza preko USB-a")
-
-        return self.izvrsi(radnja)
-
     def tacka_fokusa(self, x, y):
-        """Pomera tačku fokusa (i centar zuma) na deo kadra, x i y su od 0 do 1."""
+        """Pomera tačku fokusa na deo kadra, x i y su od 0 do 1."""
         vrednost_x = int(float(x) * SIRINA_KADRA)
         vrednost_y = int(float(y) * VISINA_KADRA)
 
@@ -492,8 +468,6 @@ class Zahtev(BaseHTTPRequestHandler):
         upit = {k: v[0] for k, v in parse_qs(url.query).items()}
         radnje = {
             "/okini": lambda: {"snimak": aparat.okini()},
-            "/provera": lambda: {"snimak": "provere/" + aparat.okini(PROVERE)},
-            "/zum": lambda: aparat.zum(upit.get("nivo", 0)),
             "/tacka": lambda: aparat.tacka_fokusa(upit["x"], upit["y"]),
             "/autofokus": lambda: aparat.autofokus(),
             "/fokus": lambda: aparat.rucni_fokus(upit.get("korak", 0)),
@@ -539,7 +513,6 @@ class Zahtev(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    PROVERE.mkdir(parents=True, exist_ok=True)
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Zahtev)
     print(f"Nikon D3400 daljinski: http://localhost:{PORT}")
     try:

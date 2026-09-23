@@ -11,35 +11,34 @@
   header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2a2a; }
   header b { color: var(--akcent); }
   #status { color: var(--sivo); }
-  main { display: grid; grid-template-columns: 1fr 300px; gap: 16px; padding: 16px; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; padding: 16px; align-items: start; }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
   /* Ceo kadar uvek staje u prozor: širina se smanjuje kad bi visina prešla ekran. */
   .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 200px) * 1.5)); min-width: 320px; margin: 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
   .prikaz { position: relative; }
   .prikaz img { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; }
   #oznaka { position: absolute; width: 48px; height: 48px; margin: -24px 0 0 -24px; border: 2px solid var(--akcent); border-radius: 4px; pointer-events: none; display: none; }
-  #zumNivo { color: var(--sivo); align-self: center; min-width: 60px; }
-  #lupa { position: fixed; inset: 0; background: #000; overflow: auto; display: none; cursor: zoom-out; z-index: 10; }
-  #lupa img { display: block; max-width: none; }
   #bioskop { position: fixed; inset: 0; background: #000e; display: none; place-items: center; z-index: 10; padding: 16px; }
   #bioskop video { max-width: 100%; max-height: 90vh; }
   #bioskop button { position: fixed; top: 12px; right: 16px; }
   #vreme { color: #f66; align-self: center; font-variant-numeric: tabular-nums; }
-  #lupa p { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: #000c; padding: 6px 12px; border-radius: 6px; margin: 0; }
   .prikaz span { color: var(--sivo); }
   .prikaz button { font-size: 16px; padding: 14px 22px; }
-  .kontrole { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .kontrole { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
   #okvirVidea { position: absolute; box-shadow: 0 0 0 9999px #000; pointer-events: none; display: none; }
   #okvirVidea span { position: absolute; top: 6px; left: 8px; font-size: 12px; background: #000b; padding: 2px 6px; border-radius: 4px; }
-  .glavni-red { align-items: center; justify-content: center; gap: 8px; }
-  .glavni-red .razmak { width: 1px; height: 32px; background: #333; margin: 0 4px; }
-  .glavni-red select { width: auto; padding: 9px 6px; }
+  .glavni-red { align-items: center; }
+  .glavni-red > button, .glavni-red > select { width: 100%; min-width: 0; }
+  .glavni-red .razmak { display: none; }
   .rezim { display: flex; }
+  .rezim, #format, #okidac, #vreme, #dugmePogledaj, #dugmeAf { grid-column: 1 / -1; }
+  #vreme:empty { display: none; }
+  .rezim button { flex: 1; }
   .rezim button { border-radius: 0; }
   .rezim button:first-child { border-radius: 6px 0 0 6px; }
   .rezim button:last-child { border-radius: 0 6px 6px 0; }
   .rezim button.izabran { background: var(--tekst); color: #000; border-color: var(--tekst); }
-  .okidac { width: 64px; height: 64px; border-radius: 50%; padding: 0; border: 4px solid var(--tekst); background: transparent; display: grid; place-items: center; }
+  .okidac { justify-self: center; width: 64px !important; height: 64px; border-radius: 50%; padding: 0; border: 4px solid var(--tekst); background: transparent; display: grid; place-items: center; }
   .okidac::after { content: ''; width: 48px; height: 48px; border-radius: 50%; background: var(--tekst); transition: all .15s; }
   .okidac.video::after { background: #e33; }
   .okidac.snima::after { width: 24px; height: 24px; border-radius: 4px; }
@@ -84,10 +83,13 @@
 <main>
   <div>
     <div class="prikaz" id="prikaz"></div>
+    <p style="color:var(--sivo);font-size:13px;margin:8px 0 0">Klik na živi prikaz izoštrava na tom delu kadra. Taster F izoštrava ponovo, razmaknica okida.</p>
+  </div>
+
+  <aside>
     <div class="kontrole glavni-red">
       <button id="dugmePrikaz">Uključi živi prikaz</button>
       <button id="dugmePusti" title="Prekida vezu, da dugmad na aparatu rade">⏏ Pusti</button>
-      <span class="razmak"></span>
       <div class="rezim">
         <button data-rezim="foto" class="izabran">Foto</button>
         <button data-rezim="video">Video</button>
@@ -101,17 +103,8 @@
       <button id="okidac" class="okidac" title="Slikaj (razmaknica)"></button>
       <span id="vreme"></span>
       <button id="dugmePogledaj" class="glavno" hidden>Pogledaj na Mac-u</button>
-      <span class="razmak"></span>
       <button class="glavno" id="dugmeAf">◎ Izoštri</button>
-      <button data-zum="-1">Zum −</button>
-      <span id="zumNivo">ceo kadar</span>
-      <button data-zum="1">Zum +</button>
-      <button id="dugmeProvera">Proveri oštrinu</button>
     </div>
-    <p style="color:var(--sivo);font-size:13px;margin:8px 0 0">Klik na živi prikaz izoštrava na tom delu kadra, i tu se zumira. Taster F izoštrava ponovo, razmaknica okida.</p>
-  </div>
-
-  <aside>
     <section>
       <h2>Podešavanja</h2>
       <div id="podesavanja"><span style="color:var(--sivo)">Učitavam…</span></div>
@@ -135,7 +128,6 @@
 
 <div id="poruka"></div>
 <div id="bioskop"><button>Zatvori</button><video controls autoplay playsinline></video></div>
-<div id="lupa"><p>Provera u punoj rezoluciji. Klik zatvara.</p><img alt="Provera oštrine"></div>
 
 <script>
 const $ = (s) => document.querySelector(s);
@@ -167,7 +159,6 @@ async function posalji(putanja, dugme) {
 
 let tacka = { x: 0.5, y: 0.5 };
 let rezim = 'foto';
-let zumNivo = 0;
 
 function prikaz(ukljuci, obavestiServer = true) {
   prikazUkljucen = ukljuci;
@@ -200,7 +191,7 @@ function azurirajOkvirVidea() {
   const okvir = $('#okvirVidea');
   const img = $('#prikaz img');
   if (!okvir || !img) return;
-  if (rezim !== 'video' || zumNivo !== 0) {
+  if (rezim !== 'video') {
     okvir.style.display = 'none';
     return;
   }
@@ -265,33 +256,6 @@ document.addEventListener('keydown', (e) => {
     $('#okidac').click();
   }
 });
-
-document.querySelectorAll('[data-zum]').forEach((b) => {
-  b.onclick = async () => {
-    if (!prikazUkljucen) return poruka('Zum radi samo uz živi prikaz', true);
-    const podaci = await posalji('/zum?nivo=' + (zumNivo + Number(b.dataset.zum)), b);
-    zumNivo = podaci.nivo;
-    azurirajOkvirVidea();
-    $('#zumNivo').textContent = zumNivo === 0 ? 'ceo kadar' : 'zum ' + podaci.vrednost;
-  };
-});
-
-$('#dugmeProvera').onclick = async (e) => {
-  const { snimak } = await posalji('/provera', e.target);
-  if (!/\.jpe?g$/i.test(snimak)) {
-    return poruka('Aparat je snimio RAW. Za proveru podesi kvalitet slike na JPEG ili RAW + JPEG', true);
-  }
-  const lupa = $('#lupa');
-  const img = lupa.querySelector('img');
-  img.onload = () => {
-    lupa.scrollLeft = tacka.x * img.naturalWidth - lupa.clientWidth / 2;
-    lupa.scrollTop = tacka.y * img.naturalHeight - lupa.clientHeight / 2;
-  };
-  img.src = '/snimci/' + snimak;
-  lupa.style.display = 'block';
-};
-
-$('#lupa').onclick = () => ($('#lupa').style.display = 'none');
 
 $('#dugmePrikaz').onclick = () => prikaz(!prikazUkljucen);
 

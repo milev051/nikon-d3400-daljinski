@@ -33,20 +33,18 @@ sistem. Homebrew nije potreban.
 | `index.html` | interfejs u pregledaču |
 | `pokreni.command` | pokretanje dvoklikom |
 | `snimci/` | fotografije prebačene sa aparata |
-| `snimci/provere/` | fotografije za proveru oštrine, odvojene od pravih |
 | `snimci/pregled/` | MP4 kopije videa za puštanje u pregledaču |
 | `snimci/.slicice/` | sličice za galeriju, mogu da se obrišu, prave se ponovo |
 
 ## Šta postoji sada
 
 - Živi prikaz, uključi i ugasi.
-- Prekidač **Foto | Video** i jedno okruglo dugme ispod živog prikaza (i
+- Prekidač **Foto | Video** i jedno okruglo dugme desno od živog prikaza (i
   razmaknica): u foto režimu slika, u video režimu počinje i zaustavlja snimanje.
   U video režimu se vidi samo deo kadra koji ide u video, ostatak je sakriven.
   Format se bira: 16:9 (FHD), 1.85:1, 2:1 ili 2.39:1. Aparat uvek snima 16:9,
   pa su širi formati vodič za kadriranje i sečenje u montaži. Okvir je
   približan: po sredini, cela širina.
-- Sve kontrole su u jednom redu ispod živog prikaza.
 - Slika odmah ide na Mac.
 - Autofokus: dugme „Izoštri (AF)", taster F, ili klik na deo živog prikaza
   (pomeri tačku fokusa tamo i odmah izoštri).
@@ -72,8 +70,9 @@ sistem. Homebrew nije potreban.
   - Uz NEF+JPEG se NEF po defaultu krije, da se ne vidi svaki snimak dvaput.
   - Sličice se pamte u `snimci/.slicice/`, pa se kartica ne čita ponovo.
 - Živi prikaz se sam uključi kad se stranica otvori, a ugasi kad se zatvori.
-- Izbor tačke fokusa klikom na živi prikaz, zum živog prikaza i provera
-  oštrine (opisano ispod).
+- Klik na živi prikaz bira tačku fokusa. Kontrole za fotografisanje i video su
+  desno od prikaza; zum i probni snimak za proveru oštrine uklonjeni su iz
+  interfejsa.
 
 ## Prva proba, šta se proverava
 
@@ -87,8 +86,6 @@ Stanje posle prve probe, 23.09.2026 (libgphoto2 2.5.34, firmver aparata 1.13):
 - [x] U meniju su „Face-priority AF" i „Single-servo AF", mogu da se menjaju.
 - [ ] Klik na živi prikaz: da li se tačka fokusa na aparatu pomeri na isto
       mesto. Pun kadar je 6000×4000, isto kao `SIRINA_KADRA` i `VISINA_KADRA`.
-- [x] Zum: nivoi 25% i 50%, i još tri bez naziva.
-- [x] Provera oštrine.
 - [x] Video sa računara: 1920×1080, 30 kadrova u sekundi, H.264 sa PCM zvukom.
       Pri zaustavljanju libgphoto2 javi „Access Denied" dok vraća režim
       aparata, snimak je ipak ispravan, pa server tu grešku preskače.
@@ -98,39 +95,19 @@ Ako se aparat ne poveže: izvući i vratiti kabl, pa osvežiti stranicu. macOS
 servis `ptpcamerad` zna da zauzme aparat, server ga gasi sam, ali ne uvek na
 vreme.
 
-## Provera fokusa, sve opcije
-
-### Već ubačeno
+## Provera fokusa, plan
 
 1. **Tačka fokusa klikom.** Klik na živi prikaz pomera tačku fokusa aparata na
    taj deo kadra, pa autofokus oštri tamo.
-2. **Zum živog prikaza.** Uvećava izabrani deo kao lupa na ekranu aparata. Slika
-   ostaje male rezolucije, ali pokriva mali deo kadra, pa se oštrina vidi.
-   Potvrđeno da D3400 ovo dozvoljava preko USB-a.
-3. **Provera oštrine fotografijom.** Jedan snimak u punoj rezoluciji, otvoren u
-   stvarnoj veličini na izabranom delu. Najpouzdanije, radi bez obzira na
-   podršku aparata. Traži JPEG ili RAW + JPEG.
-
-### Za kasnije
-
-4. **Poruka da fokus nije uspeo.** Ubačeno posle prve probe: umesto opšte
+2. **Poruka da fokus nije uspeo.** Ubačeno posle prve probe: umesto opšte
    greške piše zašto autofokus verovatno nije uspeo.
-5. **Prikaz trenutnih AF podešavanja.** Upozorenje ako nije uključeno
+3. **Prikaz trenutnih AF podešavanja.** Upozorenje ako nije uključeno
    prepoznavanje lica ili ako je AF-F umesto AF-S pre snimanja.
-6. **Merač oštrine.** Broj ili grafikon koji raste kako slika postaje oštrija,
-   računat iz izabranog dela živog prikaza. Korisno pri ručnom fokusu: pomeraš
-   dok broj ne dostigne vrh.
-7. **Isticanje oštrih ivica (focus peaking).** Oštri delovi slike se oboje u
-   živom prikazu. Na maloj slici je grubo, na zumiranoj bolje.
-8. **Automatsko traženje najboljeg fokusa.** Server pomera fokus u koracima,
+4. **Automatsko traženje najboljeg fokusa.** Server pomera fokus u koracima,
    meri oštrinu na svakom i vrati se na najbolji. Zamena za autofokus kad on
    pumpa ili promašuje.
-9. **Automatski zum na oči.** Na fotografiji za proveru se prepozna lice i
-   pregled se otvori odmah na očima.
-10. **Poređenje dve provere.** Dve fotografije jedna pored druge, npr. pre i
-    posle pomeranja fokusa.
-11. **Probni video.** Ubačeno: snimi se par sekundi sa računara, server ih
-    povuče sa kartice i pusti u pregledaču u punoj rezoluciji. Jedina provera
+5. **Probni video.** Ubačeno: snimi se par sekundi sa računara, server ih
+   povuče sa kartice i pusti u pregledaču u punoj rezoluciji. Jedina provera
     koja pokazuje pravi video, sa fokusom, bojama i ekspozicijom.
 
 ## Preporuka za snimanje osobe koja sedi
