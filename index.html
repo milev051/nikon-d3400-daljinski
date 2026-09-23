@@ -8,12 +8,9 @@
   :root { --poz: #111; --pov: #1c1c1c; --tekst: #eee; --sivo: #888; --akcent: #f5c400; }
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.4 -apple-system, system-ui, sans-serif; background: var(--poz); color: var(--tekst); height: 100vh; overflow: hidden; }
-  header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2a2a; }
-  header b { color: var(--akcent); }
-  .zaglavlje-desno { display: flex; align-items: center; gap: 16px; }
   #status, #baterija { color: var(--sivo); }
   #baterija { font-variant-numeric: tabular-nums; }
-  .radni { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 12px; height: calc(100vh - 52px); padding: 12px; min-height: 0; }
+  .radni { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 12px; height: 100vh; padding: 12px; min-height: 0; }
   main { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; padding: 0; align-items: stretch; min-width: 0; min-height: 0; }
   .kamera { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: 0; }
   @media (max-width: 1100px) { .radni { grid-template-columns: 270px minmax(0, 1fr); } main { grid-template-columns: minmax(0, 1fr) 230px; } }
@@ -25,7 +22,7 @@
     aside { overflow: visible !important; }
   }
   /* Ceo kadar uvek staje u prozor: širina se smanjuje kad bi visina prešla ekran. */
-  .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 100px) * 1.5)); min-width: 0; margin: 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
+  .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 50px) * 1.5)); min-width: 0; margin: 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
   .prikaz { position: relative; }
   .prikaz img { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; }
   #fokusStatus { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #000c; border: 1px solid #ffffff55; border-radius: 6px; padding: 8px 12px; display: none; pointer-events: none; }
@@ -42,14 +39,11 @@
   .glavni-red { align-items: center; }
   .glavni-red > button, .glavni-red > select { width: 100%; min-width: 0; }
   .glavni-red .razmak { display: none; }
-  .rezim { display: flex; }
-  .rezim, #format, #okidac, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
+  #format, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
   #vreme:empty { display: none; }
-  .rezim button { flex: 1; }
-  .rezim button { border-radius: 0; }
-  .rezim button:first-child { border-radius: 6px 0 0 6px; }
-  .rezim button:last-child { border-radius: 0 6px 6px 0; }
-  .rezim button.izabran { background: var(--tekst); color: #000; border-color: var(--tekst); }
+  .status-aparata { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; color: var(--sivo); font-size: 13px; }
+  .status-aparata b { color: var(--akcent); }
+  .akcija-snimanja { display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--sivo); font-size: 12px; }
   .okidac { justify-self: center; width: 64px !important; height: 64px; border-radius: 50%; padding: 0; border: 4px solid var(--tekst); background: transparent; display: grid; place-items: center; }
   .okidac::after { content: ''; width: 48px; height: 48px; border-radius: 50%; background: var(--tekst); transition: all .15s; }
   .okidac.video::after { background: #e33; }
@@ -92,11 +86,6 @@
 </style>
 </head>
 <body>
-<header>
-  <div><b>Nikon D3400</b> daljinski</div>
-  <div class="zaglavlje-desno"><span id="baterija"></span><div id="status">Tražim aparat…</div></div>
-</header>
-
 <div class="radni">
   <section class="galerija">
     <h2>Materijal</h2>
@@ -119,20 +108,28 @@
   </div>
 
   <aside>
+    <section class="status-aparata">
+      <b>Nikon D3400</b>
+      <span id="status">Tražim aparat…</span>
+      <span id="baterija"></span>
+    </section>
     <div class="kontrole glavni-red">
       <button id="dugmePrikaz">Uključi živi prikaz</button>
       <button id="dugmePusti" title="Prekida vezu, da dugmad na aparatu rade">⏏ Pusti</button>
-      <div class="rezim">
-        <button data-rezim="foto" class="izabran">Foto</button>
-        <button data-rezim="video">Video</button>
+      <div class="akcija-snimanja">
+        <button id="dugmeFoto" class="okidac" title="Slikaj" aria-label="Slikaj"></button>
+        <span>Slikaj</span>
       </div>
-      <select id="format" title="Format kadra za video" hidden>
+      <div class="akcija-snimanja">
+        <button id="dugmeVideo" class="okidac video" title="Počni snimanje" aria-label="Počni snimanje"></button>
+        <span id="oznakaDugmetaVidea">Snimi video</span>
+      </div>
+      <select id="format" title="Format kadra za video">
         <option value="1.7778">16:9 (FHD)</option>
         <option value="1.85">1.85:1 film</option>
         <option value="2">2:1</option>
         <option value="2.39">2.39:1 široki film</option>
       </select>
-      <button id="okidac" class="okidac" title="Slikaj (razmaknica)"></button>
       <span id="vreme"></span>
       <button id="dugmePogledaj" class="glavno" hidden>Pogledaj na Mac-u</button>
       <button class="glavno" id="dugmeAf">◎ Izoštri</button>
@@ -178,7 +175,6 @@ async function posalji(putanja, dugme) {
 }
 
 let tacka = { x: 0.5, y: 0.5 };
-let rezim = 'foto';
 
 function prikaz(ukljuci, obavestiServer = true) {
   prikazUkljucen = ukljuci;
@@ -211,10 +207,6 @@ function azurirajOkvirVidea() {
   const okvir = $('#okvirVidea');
   const img = $('#prikaz img');
   if (!okvir || !img) return;
-  if (rezim !== 'video') {
-    okvir.style.display = 'none';
-    return;
-  }
   const p = povrsinaSlike(img);
   const format = $('#format');
   const visina = p.sirina / Number(format.value);
@@ -276,7 +268,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 'f') izostri().catch(() => {});
   if (e.key === ' ') {
     e.preventDefault();
-    $('#okidac').click();
+    (videoUkljucen ? $('#dugmeVideo') : $('#dugmeFoto')).click();
   }
 });
 
@@ -296,34 +288,24 @@ let pocetakVidea = 0;
 let brojac = null;
 let odnosSnimanja = '1.7778';
 
-function postaviRezim(novi) {
-  if (videoUkljucen) return poruka('Prvo zaustavi snimanje', true);
-  rezim = novi;
-  document.querySelectorAll('[data-rezim]').forEach((b) => b.classList.toggle('izabran', b.dataset.rezim === rezim));
-  const okidac = $('#okidac');
-  okidac.classList.toggle('video', rezim === 'video');
-  $('#format').hidden = rezim !== 'video';
-  okidac.title = rezim === 'video' ? 'Počni snimanje (razmaknica)' : 'Slikaj (razmaknica)';
-  azurirajOkvirVidea();
-}
+$('#dugmeFoto').onclick = async (e) => {
+  const podaci = await posalji('/okini', e.currentTarget);
+  poruka('Sačuvano: ' + podaci.snimak);
+  return ucitajGaleriju();
+};
 
-document.querySelectorAll('[data-rezim]').forEach((b) => (b.onclick = () => postaviRezim(b.dataset.rezim)));
-
-$('#okidac').onclick = async (e) => {
-  const okidac = e.currentTarget;
-  if (rezim === 'foto') {
-    const podaci = await posalji('/okini', okidac);
-    poruka('Sačuvano: ' + podaci.snimak);
-    return ucitajGaleriju();
-  }
+$('#dugmeVideo').onclick = async (e) => {
+  const dugme = e.currentTarget;
   if (!videoUkljucen) odnosSnimanja = $('#format').value;
   const podaci = await posalji(
     '/video?ukljuci=' + (videoUkljucen ? 0 : 1) + '&format=' + encodeURIComponent(odnosSnimanja),
-    okidac,
+    dugme,
   );
   videoUkljucen = !videoUkljucen;
-  okidac.classList.toggle('snima', videoUkljucen);
-  okidac.title = videoUkljucen ? 'Zaustavi snimanje (razmaknica)' : 'Počni snimanje (razmaknica)';
+  $('#dugmeFoto').disabled = videoUkljucen;
+  dugme.classList.toggle('snima', videoUkljucen);
+  dugme.title = videoUkljucen ? 'Zaustavi snimanje' : 'Počni snimanje';
+  $('#oznakaDugmetaVidea').textContent = videoUkljucen ? 'Zaustavi video' : 'Snimi video';
   clearInterval(brojac);
   if (videoUkljucen) {
     if (!prikazUkljucen) prikaz(true);
