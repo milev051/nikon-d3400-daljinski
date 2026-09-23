@@ -31,6 +31,13 @@
   .prikaz img { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; }
   #okvirCeleSlike { position: absolute; z-index: 2; display: none; border: 1px solid #ffffff70; pointer-events: none; }
   #okvirCeleSlike span { position: absolute; top: 6px; right: 8px; font-size: 12px; color: var(--tekst); background: #000b; padding: 2px 6px; border-radius: 4px; }
+  #mrezaCentra { position: absolute; z-index: 3; display: none; pointer-events: none; }
+  #mrezaCentra i { position: absolute; display: block; background: #ffffffa8; }
+  #mrezaCentra .vertikalna { top: 0; bottom: 0; width: 1px; transform: translateX(-50%); }
+  #mrezaCentra .horizontalna { left: 0; right: 0; height: 1px; transform: translateY(-50%); }
+  #mrezaCentra .centar { background: var(--akcent); }
+  #mrezaCentra .centar.vertikalna { width: 2px; }
+  #mrezaCentra .centar.horizontalna { height: 2px; }
   #fokusStatus { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #000c; border: 1px solid #ffffff55; border-radius: 6px; padding: 8px 12px; display: none; pointer-events: none; }
   #oznaka { position: absolute; z-index: 3; width: 48px; height: 48px; margin: -24px 0 0 -24px; border: 2px solid var(--akcent); border-radius: 4px; pointer-events: none; display: none; }
   #bioskop { position: fixed; inset: 0; background: #000e; display: none; place-items: center; z-index: 10; padding: 16px; }
@@ -45,7 +52,7 @@
   .glavni-red { align-items: center; }
   .glavni-red > button, .glavni-red > select { width: 100%; min-width: 0; }
   .glavni-red .razmak { display: none; }
-  #dugmeGalerija, #format, #dugmeVodic, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
+  #dugmeGalerija, #format, #dugmeVodic, #dugmeMreza, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
   #dugmePanel { grid-column: 1 / -1; }
   #vreme:empty { display: none; }
   .status-aparata { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; color: var(--sivo); font-size: 13px; }
@@ -144,6 +151,7 @@
         <option value="2.39">2.39:1 široki film</option>
       </select>
       <button id="dugmeVodic" aria-pressed="false">▦ Vodič kadra: isključen</button>
+      <button id="dugmeMreza" aria-pressed="true">⊞ Mreža centra: uključena</button>
       <span id="vreme"></span>
       <button id="dugmePogledaj" class="glavno" hidden>Pogledaj na Mac-u</button>
       <button class="glavno" id="dugmeAf">◎ Izoštri</button>
@@ -167,6 +175,7 @@ const $ = (s) => document.querySelector(s);
 let prikazUkljucen = false;
 let videoUkljucen = false;
 let vodicAktivan = false;
+let mrezaCentraAktivna = true;
 
 function postaviGalerijuSakrivenu(sakrivena) {
   const radni = $('.radni');
@@ -216,6 +225,19 @@ function postaviVodic(aktivan) {
 postaviVodic(localStorage.getItem('vodicKadra') === 'da');
 $('#dugmeVodic').onclick = () => postaviVodic(!vodicAktivan);
 
+function postaviMrezuCentra(aktivna) {
+  mrezaCentraAktivna = aktivna;
+  const dugme = $('#dugmeMreza');
+  dugme.textContent = aktivna ? '⊞ Mreža centra: uključena' : '⊞ Mreža centra: isključena';
+  dugme.classList.toggle('aktivno', aktivna);
+  dugme.setAttribute('aria-pressed', String(aktivna));
+  localStorage.setItem('mrezaCentra', aktivna ? 'da' : 'ne');
+  azurirajOkvirVidea();
+}
+
+postaviMrezuCentra(localStorage.getItem('mrezaCentra') !== 'ne');
+$('#dugmeMreza').onclick = () => postaviMrezuCentra(!mrezaCentraAktivna);
+
 function poruka(tekst, greska = false) {
   const el = $('#poruka');
   el.textContent = tekst;
@@ -245,7 +267,7 @@ function prikaz(ukljuci, obavestiServer = true) {
   prikazUkljucen = ukljuci;
   const okvir = $('#prikaz');
   okvir.innerHTML = ukljuci
-    ? `<img src="/prikaz?t=${Date.now()}" alt="Živi prikaz"><div id="okvirCeleSlike"><span>Cela slika · 3:2</span></div><div id="fokusStatus">◎ Izoštravam…</div><div id="okvirVidea"><span></span></div><div id="oznaka"></div>`
+    ? `<img src="/prikaz?t=${Date.now()}" alt="Živi prikaz"><div id="okvirCeleSlike"><span>Cela slika · 3:2</span></div><div id="mrezaCentra" aria-hidden="true"><i class="vertikalna" style="left:33.333%"></i><i class="vertikalna centar" style="left:50%"></i><i class="vertikalna" style="left:66.667%"></i><i class="horizontalna" style="top:33.333%"></i><i class="horizontalna centar" style="top:50%"></i><i class="horizontalna" style="top:66.667%"></i></div><div id="fokusStatus">◎ Izoštravam…</div><div id="okvirVidea"><span></span></div><div id="oznaka"></div>`
     : '<div style="text-align:center"><button class="glavno">Uključi živi prikaz</button><br><span>Dok je uključen, baterija se brže prazni</span></div>';
   if (ukljuci) okvir.querySelector('img').onclick = izaberiTacku;
   else {
@@ -278,6 +300,14 @@ function azurirajOkvirVidea() {
   const ceoKadar = $('#okvirCeleSlike');
   Object.assign(ceoKadar.style, {
     display: vodicAktivan ? 'block' : 'none',
+    left: p.levo + 'px',
+    width: p.sirina + 'px',
+    top: p.gore + 'px',
+    height: p.visina + 'px',
+  });
+  const mreza = $('#mrezaCentra');
+  Object.assign(mreza.style, {
+    display: mrezaCentraAktivna ? 'block' : 'none',
     left: p.levo + 'px',
     width: p.sirina + 'px',
     top: p.gore + 'px',
