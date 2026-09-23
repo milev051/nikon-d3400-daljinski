@@ -116,6 +116,8 @@ class Aparat:
         self.serija_stop = threading.Event()
         self.serija = {"radi": False, "ukupno": 0, "gotovo": 0, "poslednji": None, "greska": None}
         self.spoljno_okidanje = {"broj": 0, "putanja": None}
+        self.spoljne_putanje = []
+        self.vreme_poslednjeg_spoljnog_okidanja = 0
         threading.Thread(target=self._nadgledaj_fizicki_okidac, name="nikon-fizicki-okidac", daemon=True).start()
 
     def _nadgledaj_fizicki_okidac(self):
@@ -127,7 +129,13 @@ class Aparat:
                     if kamera is not None:
                         tip, podatak = kamera.wait_for_event(1 if self.zivi_prikaz else 250)
                         if tip == gp.GP_EVENT_FILE_ADDED and Path(podatak.name).suffix.lower() == ".nef":
-                            self._preuzmi_spoljni_nef(kamera, podatak)
+                            self.spoljne_putanje.append(podatak)
+                            self.vreme_poslednjeg_spoljnog_okidanja = time.monotonic()
+                        if self.spoljne_putanje and time.monotonic() - self.vreme_poslednjeg_spoljnog_okidanja >= 2.5:
+                            putanje = self.spoljne_putanje
+                            self.spoljne_putanje = []
+                            for putanja in putanje:
+                                self._preuzmi_spoljni_nef(kamera, putanja)
             except gp.GPhoto2Error:
                 with self.brava:
                     self._prekini()
@@ -257,8 +265,8 @@ class Aparat:
             delovi = delovi[1:]
         return Path(*delovi) if delovi else Path(ime)
 
-    def okini(self):
-        """Okida i čuva originalna imena/foldere; JPEG se preskače kada postoji NEF."""
+    def okini(self, preuzmi=True):
+        """Okida; NEF se može preuzeti odmah ili tek nakon završetka serije."""
 
         def radnja(k):
             putanje = [k.capture(gp.GP_CAPTURE_IMAGE)]
@@ -270,6 +278,10 @@ class Aparat:
                 if tip == gp.GP_EVENT_FILE_ADDED:
                     putanje.append(podatak)
             nef_putanje = [p for p in putanje if Path(p.name).suffix.lower() == ".nef"]
+            if not nef_putanje:
+                raise RuntimeError("Okidanje je uspelo, ali nije pronađen NEF fajl za preuzimanje")
+            if not preuzmi:
+                return [p.folder.rstrip("/") + "/" + p.name for p in nef_putanje]
             poslednja_putanja = None
             for putanja in nef_putanje:
                 odrediste = SNIMCI / self.lokalna_putanja_kamere(putanja.folder, putanja.name)
@@ -277,8 +289,6 @@ class Aparat:
                 fajl = k.file_get(putanja.folder, putanja.name, gp.GP_FILE_TYPE_NORMAL)
                 fajl.save(str(odrediste))
                 poslednja_putanja = odrediste.relative_to(SNIMCI).as_posix()
-            if not poslednja_putanja:
-                raise RuntimeError("Okidanje je uspelo, ali nije pronađen NEF fajl za preuzimanje")
             return poslednja_putanja
 
         return self.izvrsi(radnja)
@@ -290,25 +300,35 @@ class Aparat:
             if self.serija["radi"]:
                 raise RuntimeError("Serijsko slikanje je već pokrenuto")
             self.serija_stop.clear()
-            self.serija = {"radi": True, "ukupno": broj, "gotovo": 0, "poslednji": None, "greska": None}
+            self.serija = {"radi": True, "faza": "snimanje", "ukupno": broj, "gotovo": 0, "sinhronizovano": 0, "poslednji": None, "greska": None}
 
         def snimaj():
+            putanje = []
             try:
                 for _ in range(broj):
                     if self.serija_stop.is_set():
                         break
                     pocetak = time.monotonic()
-                    ime = self.okini()
+                    nove_putanje = self.okini(preuzmi=False)
+                    putanje.extend(nove_putanje)
                     self.serija["gotovo"] += 1
-                    self.serija["poslednji"] = ime
+                    self.serija["poslednji"] = nove_putanje[-1]
                     preostalo = interval_ms / 1000 - (time.monotonic() - pocetak)
                     if preostalo > 0 and self.serija_stop.wait(preostalo):
                         break
             except Exception as greska:
                 self.serija["greska"] = str(greska)
-            finally:
-                with self.serija_zakljucavanje:
-                    self.serija["radi"] = False
+            self.serija["faza"] = "prenos"
+            for putanja in putanje:
+                try:
+                    kopija = self.preuzmi_sa_kartice(putanja)
+                    self.serija["poslednji"] = kopija["putanja"]
+                    self.serija["sinhronizovano"] += 1
+                except Exception as greska:
+                    self.serija["greska"] = str(greska)
+                    break
+            with self.serija_zakljucavanje:
+                self.serija["radi"] = False
 
         threading.Thread(target=snimaj, name="nikon-serijsko-slikanje", daemon=True).start()
         return self.stanje_serije()

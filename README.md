@@ -48,15 +48,15 @@ sistem. Homebrew nije potreban.
   približan: po sredini, cela širina.
 - Slika odmah ide na Mac.
 - Serijsko slikanje: izaberi broj NEF fotografija i najmanji razmak u
-  milisekundama (0 za bez čekanja). Prenos preko USB-a može da učini stvarni
-  razmak dužim od izabranog; serija prikazuje napredak i može da se zaustavi.
+  milisekundama (0 za bez čekanja). Fajlovi se sinhronizuju nakon snimanja cele
+  serije, da prenos RAW-a ne usporava sledeći okidač. Serija prikazuje napredak
+  snimanja i prenosa i može da se zaustavi.
 - Aplikacija prati PTP događaje sa fizičkog dugmeta zatvarača i preuzima NEF
   ako ga Nikon pošalje preko USB-a, i kad je živi prikaz ugašen. To treba
   potvrditi probom na D3400; ponašanje može zavisiti od režima aparata i cilja
   čuvanja slike.
-- Sličica poslednje fotografije ili izabrane stavke iz galerije prikazuje se u
-  malom pomerljivom panelu. Panel pamti svoju poziciju; klik na original otvara
-  sačuvani fajl.
+- Sličica poslednje fotografije ili izabrane stavke iz galerije prikazuje se
+  ispod živog prikaza. Dugme odmah ispod kadra skroluje do nje.
 - Autofokus: dugme „Izoštri (AF)", taster F, ili klik na deo živog prikaza
   (pomeri tačku fokusa tamo i odmah izoštri).
   - Klik prebacuje AF zonu sa prepoznavanja lica na usku zonu, jer lica i
@@ -69,13 +69,14 @@ sistem. Homebrew nije potreban.
 - Podešavanja: režim, ISO, zatvarač, blenda, korekcija ekspozicije, balans bele,
   režim fokusa, AF režim živog prikaza (npr. prepoznavanje lica), AF-S ili AF-F,
   kvalitet slike, gde se slika čuva. Vidi se samo ono što aparat prijavi.
-- Video: počni i zaustavi sa računara, pa „Pogledaj na Mac-u" prebaci snimak
-  sa kartice i pusti ga u pregledaču. Original (MOV) ide u `snimci/`, a kopija
+- Video: počni i zaustavi sa računara; po završetku se snimak automatski
+  prebacuje sa kartice, pa „Pogledaj na Mac-u" pušta kopiju u pregledaču. Original (MOV) ide u `snimci/`, a kopija
   za pregledač (MP4, ista slika, AAC zvuk) u `snimci/pregled/`. Za MP4 treba
   `ffmpeg`, bez njega se pušta MOV (radi u Safari-ju). Izabrani odnos kadra
   zapisuje se uz putanju videa u `snimci/odnosi-videa.txt`; video se ne seče.
-- Levo je uska galerija sa sličicama u dve kolone; prikaz i kontrole su desno,
-  tako da se na širokom ekranu sve vidi u jednom redu.
+- Galerija sa tri kolone sličica ima svoj skrol. Gornja traka drži osvežavanje
+  veze i kontrole za skrivanje galerije i desnog panela. Središnji stub se
+  skroluje zasebno, a foto, video i okrugli AF tasteri su zajedno.
 - Galerija ima dve kartice:
   - **Na kartici aparata**: NEF fotografije i MOV/MP4 video sa SD kartice, sa veličinom i oznakom šta je
     već na Mac-u. Klik bira, dvoklik prebacuje i otvara. „Izaberi sve za
