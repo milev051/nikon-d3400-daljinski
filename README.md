@@ -62,14 +62,21 @@ sistem. Homebrew nije potreban.
   sa kartice i pusti ga u pregledaču. Original (MOV) ide u `snimci/`, a kopija
   za pregledač (MP4, ista slika, AAC zvuk) u `snimci/pregled/`. Za MP4 treba
   `ffmpeg`, bez njega se pušta MOV (radi u Safari-ju).
-- Galerija sa sličicama, dve kartice:
+- Levo je uska galerija sa sličicama u dve kolone; prikaz i kontrole su desno,
+  tako da se na širokom ekranu sve vidi u jednom redu.
+- Galerija ima dve kartice:
   - **Na kartici aparata**: sve sa SD kartice, sa veličinom i oznakom šta je
-    već na Mac-u. Klik bira, dvoklik prebacuje i otvara. „Izaberi sve što nije
-    na Mac-u" pa „Prebaci na Mac". Fajlovi zadržavaju ime sa aparata (DSC_…).
+    već na Mac-u. Klik bira, dvoklik prebacuje i otvara. „Izaberi sve za
+    proveru" pa „Proveri i prebaci". Veličina kopije se proverava, sadržaj se
+    poredi kontrolnim zbirom; nepotpuna ili različita kopija se popravlja bez
+    pravljenja duplikata. Fajlovi zadržavaju ime sa aparata (DSC_…).
   - **Na Mac-u**: folder `snimci/`, klik otvara sliku ili pušta video.
   - Uz NEF+JPEG se NEF po defaultu krije, da se ne vidi svaki snimak dvaput.
   - Sličice se pamte u `snimci/.slicice/`, pa se kartica ne čita ponovo.
 - Živi prikaz se sam uključi kad se stranica otvori, a ugasi kad se zatvori.
+- Osvežavanje stranice ili dugme „Osveži vezu" prekida zastarelu USB vezu i
+  ponovo pokušava povezivanje. Ako aparat ne može da izlista karticu, galerija
+  prikaže fajlove sa Mac-a i nudi ponovno osvežavanje.
 - Klik na živi prikaz bira tačku fokusa. Kontrole za fotografisanje i video su
   desno od prikaza; zum i probni snimak za proveru oštrine uklonjeni su iz
   interfejsa.

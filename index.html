@@ -7,14 +7,23 @@
 <style>
   :root { --poz: #111; --pov: #1c1c1c; --tekst: #eee; --sivo: #888; --akcent: #f5c400; }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 15px/1.4 -apple-system, system-ui, sans-serif; background: var(--poz); color: var(--tekst); }
+  body { margin: 0; font: 15px/1.4 -apple-system, system-ui, sans-serif; background: var(--poz); color: var(--tekst); height: 100vh; overflow: hidden; }
   header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2a2a; }
   header b { color: var(--akcent); }
   #status { color: var(--sivo); }
-  main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; padding: 16px; align-items: start; }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .radni { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 12px; height: calc(100vh - 52px); padding: 12px; min-height: 0; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; padding: 0; align-items: stretch; min-width: 0; min-height: 0; }
+  .kamera { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: 0; }
+  @media (max-width: 1100px) { .radni { grid-template-columns: 270px minmax(0, 1fr); } main { grid-template-columns: minmax(0, 1fr) 230px; } }
+  @media (max-width: 900px) {
+    body { height: auto; min-height: 100vh; overflow: auto; }
+    .radni { display: flex; flex-direction: column; height: auto; }
+    .galerija { max-height: 42vh; min-height: 220px; }
+    main { display: flex; flex-direction: column; }
+    aside { overflow: visible !important; }
+  }
   /* Ceo kadar uvek staje u prozor: širina se smanjuje kad bi visina prešla ekran. */
-  .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 200px) * 1.5)); min-width: 320px; margin: 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
+  .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 100px) * 1.5)); min-width: 0; margin: 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
   .prikaz { position: relative; }
   .prikaz img { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; }
   #oznaka { position: absolute; width: 48px; height: 48px; margin: -24px 0 0 -24px; border: 2px solid var(--akcent); border-radius: 4px; pointer-events: none; display: none; }
@@ -48,16 +57,19 @@
   button:disabled { opacity: .4; cursor: wait; }
   button.glavno { background: var(--akcent); color: #000; border-color: var(--akcent); font-weight: 600; }
   button.aktivno { border-color: #e33; color: #f66; }
-  aside section { background: var(--pov); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+  aside { min-width: 0; overflow-y: auto; max-height: 100%; padding-right: 3px; }
+  aside section { background: var(--pov); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--sivo); margin: 0 0 10px; }
   label { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 6px; font-size: 14px; }
   select { width: 100%; min-width: 0; text-overflow: ellipsis; background: #111; color: var(--tekst); border: 1px solid #333; border-radius: 4px; padding: 5px; font: inherit; }
-  .galerija { padding: 0 16px 32px; }
-  .galerija .traka { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .galerija { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; padding: 10px; background: var(--pov); border-radius: 8px; }
+  .galerija h2 { margin-bottom: 0; }
+  .galerija .traka { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   .galerija .traka .tab.izabran { border-color: var(--akcent); color: var(--akcent); }
-  .galerija .traka .info { color: var(--sivo); font-size: 13px; margin-right: auto; }
-  .galerija .traka label { display: flex; grid-template-columns: none; margin: 0; gap: 6px; color: var(--sivo); font-size: 13px; }
-  #mreza { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .galerija .traka .info { color: var(--sivo); font-size: 12px; width: 100%; }
+  .galerija .traka label { display: flex; grid-template-columns: none; margin: 0; gap: 6px; color: var(--sivo); font-size: 12px; }
+  .galerija .traka button { padding: 8px 9px; font-size: 12px; }
+  #mreza { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; min-height: 0; flex: 1; overflow-y: auto; align-content: start; padding-right: 3px; }
   .plocica { position: relative; background: var(--pov); border: 2px solid transparent; border-radius: 6px; overflow: hidden; cursor: pointer; user-select: none; }
   .plocica:hover { border-color: #444; }
   .plocica.izabrana { border-color: var(--akcent); }
@@ -68,6 +80,8 @@
   .plocica .znak { position: absolute; top: 6px; left: 6px; background: #000b; border-radius: 4px; padding: 2px 6px; font-size: 11px; }
   .plocica .znak.video { background: #b22; }
   .plocica .kvacica { position: absolute; top: 6px; right: 6px; background: #1a7f37; border-radius: 4px; padding: 2px 6px; font-size: 11px; }
+  .plocica .kvacica.provera { background: #735600; }
+  .plocica .kvacica.nepotpuno { background: #8b2828; }
   .prazno { color: var(--sivo); padding: 24px 0; }
   #poruka { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #333; padding: 8px 14px; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   #poruka.vidljivo { opacity: 1; }
@@ -80,8 +94,23 @@
   <div id="status">Tražim aparat…</div>
 </header>
 
+<div class="radni">
+  <section class="galerija">
+    <h2>Materijal</h2>
+    <div class="traka">
+      <button class="tab izabran" data-tab="aparat">Kartica</button>
+      <button class="tab" data-tab="mac">Na Mac-u</button>
+      <span class="info" id="galerijaInfo"></span>
+      <label id="samoSlike"><input type="checkbox" checked> bez NEF duplikata</label>
+      <button id="izaberiNovo">Izaberi sve za proveru</button>
+      <button id="prebaci" class="glavno" hidden>Proveri i prebaci</button>
+      <button id="osveziGaleriju">↻ Osveži karticu</button>
+    </div>
+    <div id="mreza"></div>
+  </section>
+
 <main>
-  <div>
+  <div class="kamera">
     <div class="prikaz" id="prikaz"></div>
     <p style="color:var(--sivo);font-size:13px;margin:8px 0 0">Klik na živi prikaz izoštrava na tom delu kadra. Taster F izoštrava ponovo, razmaknica okida.</p>
   </div>
@@ -108,23 +137,11 @@
     <section>
       <h2>Podešavanja</h2>
       <div id="podesavanja"><span style="color:var(--sivo)">Učitavam…</span></div>
-      <button id="osvezi" style="margin-top:6px">Osveži</button>
+      <button id="osvezi" style="margin-top:6px">↻ Osveži vezu</button>
     </section>
   </aside>
 </main>
-
-<section class="galerija">
-  <div class="traka">
-    <button class="tab izabran" data-tab="aparat">Na kartici aparata</button>
-    <button class="tab" data-tab="mac">Na Mac-u</button>
-    <span class="info" id="galerijaInfo"></span>
-    <label id="samoSlike"><input type="checkbox" checked> bez NEF duplikata</label>
-    <button id="izaberiNovo">Izaberi sve što nije na Mac-u</button>
-    <button id="prebaci" class="glavno" hidden>Prebaci na Mac</button>
-    <button id="osveziGaleriju">Osveži</button>
-  </div>
-  <div id="mreza"></div>
-</section>
+</div>
 
 <div id="poruka"></div>
 <div id="bioskop"><button>Zatvori</button><video controls autoplay playsinline></video></div>
@@ -426,6 +443,7 @@ async function ucitajPodesavanja() {
 // Galerija: kartica aparata ili folder snimci/ na Mac-u.
 let tab = 'aparat';
 let fajloviKartice = [];
+let problemKartice = '';
 const izabrani = new Set();
 
 const velicina = (b) => (b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' KB');
@@ -439,12 +457,14 @@ function bezDuplikata(fajlovi) {
   return fajlovi.filter((f) => !(ekstenzija(f.ime) === 'nef' && jpeg.has(f.ime.replace(/\.[^.]+$/, ''))));
 }
 
-function plocica({ ime, velicinaB, slicica, naMacu, kljuc }) {
+function plocica({ ime, velicinaB, slicica, naMacu, statusMaca, kljuc }) {
   const tip = ekstenzija(ime);
   const znak = jeVideo(ime) ? '<span class="znak video">▶ VIDEO</span>' : tip === 'nef' ? '<span class="znak">NEF</span>' : '';
+  const statusKlasa = statusMaca === 'nepotpuno' ? ' nepotpuno' : statusMaca === 'provera' ? ' provera' : '';
+  const statusTekst = naMacu ? '✓ provereno' : statusMaca === 'nepotpuno' ? '! nepotpuno' : statusMaca === 'provera' ? 'proveri kopiju' : '';
   return `<div class="plocica${izabrani.has(kljuc) ? ' izabrana' : ''}" data-kljuc="${kljuc}" data-ime="${ime}">
     <div class="slika"><img src="${slicica}" loading="lazy" alt="" onerror="this.replaceWith('${tip.toUpperCase()}')"></div>
-    ${znak}${naMacu ? '<span class="kvacica">✓ na Mac-u</span>' : ''}
+    ${znak}${statusTekst ? `<span class="kvacica${statusKlasa}">${statusTekst}</span>` : ''}
     <div class="opis"><b>${ime}</b><span>${velicina(velicinaB)}</span></div>
   </div>`;
 }
@@ -452,7 +472,7 @@ function plocica({ ime, velicinaB, slicica, naMacu, kljuc }) {
 function azurirajDugmePrebaci() {
   const dugme = $('#prebaci');
   dugme.hidden = tab !== 'aparat' || izabrani.size === 0;
-  dugme.textContent = `Prebaci na Mac (${izabrani.size})`;
+  dugme.textContent = `Proveri i prebaci (${izabrani.size})`;
 }
 
 async function ucitajGaleriju() {
@@ -465,23 +485,28 @@ async function ucitajGaleriju() {
       const podaci = await odg.json();
       if (!odg.ok) throw new Error(podaci.greska);
       fajloviKartice = podaci.fajlovi;
+      problemKartice = '';
     } catch (e) {
-      $('#galerijaInfo').textContent = '';
-      mreza.innerHTML = `<p class="prazno">Kartica se ne čita: ${e.message}</p>`;
-      return;
+      const detalj = e.message.includes('Unspecified error')
+        ? 'aparat nije uspeo da izlista SD karticu. Proveri karticu ili klikni „Osveži karticu".'
+        : e.message;
+      problemKartice = `Kartica se ne čita: ${detalj} `;
+      tab = 'mac';
+      document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t.dataset.tab === 'mac'));
+      return ucitajGaleriju();
     }
     const prikazani = bezDuplikata(fajloviKartice);
     $('#galerijaInfo').textContent = `${fajloviKartice.length} fajlova na kartici. Klik bira, dvoklik otvara.`;
     mreza.innerHTML = prikazani.length
       ? prikazani.map((f) => plocica({
-          ime: f.ime, velicinaB: f.velicina, naMacu: f.na_macu, kljuc: f.putanja,
+          ime: f.ime, velicinaB: f.velicina, naMacu: f.na_macu, statusMaca: f.status_maca, kljuc: f.putanja,
           slicica: '/kartica/slicica?putanja=' + encodeURIComponent(f.putanja),
         })).join('')
       : '<p class="prazno">Kartica je prazna.</p>';
   } else {
     const { snimci } = await (await fetch('/snimci')).json();
     const prikazani = bezDuplikata(snimci.map((s) => ({ ...s })));
-    $('#galerijaInfo').textContent = `${snimci.length} fajlova u folderu snimci/. Klik otvara.`;
+    $('#galerijaInfo').textContent = `${problemKartice}${snimci.length} fajlova u folderu snimci/. Klik otvara.`;
     mreza.innerHTML = prikazani.length
       ? prikazani.map((f) => plocica({
           ime: f.ime, velicinaB: f.velicina, naMacu: false, kljuc: f.pregled || f.ime,
@@ -510,16 +535,24 @@ async function prebaci(putanje) {
   const dugme = $('#prebaci');
   dugme.disabled = true;
   let gotovo = 0;
-  for (const putanja of putanje) {
-    dugme.textContent = `Prebacujem ${gotovo + 1} od ${putanje.length}…`;
-    const podaci = await posalji('/preuzmi?putanja=' + encodeURIComponent(putanja));
-    if (podaci.pregled) poslednjiPregled[podaci.ime] = podaci.pregled;
-    gotovo++;
+  const greske = [];
+  try {
+    for (const putanja of putanje) {
+      dugme.textContent = `Proveravam ${gotovo + 1} od ${putanje.length}…`;
+      try {
+        const podaci = await posalji('/preuzmi?putanja=' + encodeURIComponent(putanja));
+        if (podaci.pregled) poslednjiPregled[podaci.ime] = podaci.pregled;
+        gotovo++;
+      } catch (e) {
+        greske.push(e.message);
+      }
+    }
+  } finally {
+    dugme.disabled = false;
+    izabrani.clear();
+    await ucitajGaleriju();
   }
-  dugme.disabled = false;
-  izabrani.clear();
-  poruka(`Prebačeno: ${gotovo}`);
-  await ucitajGaleriju();
+  poruka(greske.length ? `Provereno ${gotovo}; neuspešno ${greske.length}. Pokušaj ponovo.` : `Provereno ${gotovo} fajlova. Istovetni fajlovi nisu ponovo kopirani.` , greske.length > 0);
 }
 
 $('#mreza').onclick = (e) => {
@@ -546,22 +579,60 @@ document.querySelectorAll('.galerija .tab').forEach((b) => {
 });
 
 $('#izaberiNovo').onclick = () => {
-  bezDuplikata(fajloviKartice).filter((f) => !f.na_macu).forEach((f) => izabrani.add(f.putanja));
-  document.querySelectorAll('.plocica').forEach((p) => p.classList.toggle('izabrana', izabrani.has(p.dataset.kljuc)));
-  azurirajDugmePrebaci();
+  $('#samoSlike input').checked = false;
+  izabrani.clear();
+  fajloviKartice.filter((f) => f.status_maca !== 'provereno').forEach((f) => izabrani.add(f.putanja));
+  ucitajGaleriju();
 };
 
 $('#prebaci').onclick = () => prebaci([...izabrani]);
-$('#osveziGaleriju').onclick = ucitajGaleriju;
+$('#osveziGaleriju').onclick = ponovoPovezi;
 $('#samoSlike input').onchange = ucitajGaleriju;
 
 async function proveriAparat() {
-  const { model } = await (await fetch('/status')).json();
-  $('#status').textContent = model ? 'Povezan: ' + model : 'Aparat nije pronađen. Proveri USB i da li je uključen.';
-  return !!model;
+  try {
+    const { model } = await (await fetch('/status')).json();
+    $('#status').textContent = model ? 'Povezan: ' + model : 'Aparat nije pronađen. Proveri USB i klikni „Osveži vezu".';
+    return !!model;
+  } catch (e) {
+    $('#status').textContent = 'Server nije dostupan. Ponovo pokreni aplikaciju.';
+    return false;
+  }
 }
 
-$('#osvezi').onclick = ucitajPodesavanja;
+async function ponovoPovezi(e) {
+  const dugmad = [$('#osvezi'), $('#osveziGaleriju')];
+  dugmad.forEach((dugme) => { if (dugme) dugme.disabled = true; });
+  $('#status').textContent = 'Ponovo povezujem aparat…';
+  try {
+    const odg = await fetch('/povezi', { method: 'POST' });
+    const podaci = await odg.json();
+    if (!odg.ok) throw new Error(podaci.greska || 'Ponovno povezivanje nije uspelo');
+    if (!podaci.model) {
+      prikaz(false, false);
+      $('#status').textContent = 'Aparat nije pronađen. Proveri USB, uključi aparat i pokušaj ponovo.';
+      tab = 'mac';
+      document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t.dataset.tab === 'mac'));
+      await ucitajGaleriju();
+      poruka('Aparat nije pronađen', true);
+      return;
+    }
+    $('#status').textContent = 'Povezan: ' + podaci.model;
+    tab = 'aparat';
+    document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t.dataset.tab === 'aparat'));
+    prikaz(true);
+    await Promise.allSettled([ucitajPodesavanja(), ucitajGaleriju()]);
+    poruka('Veza sa aparatom je obnovljena');
+  } catch (e) {
+    prikaz(false, false);
+    $('#status').textContent = 'Ponovno povezivanje nije uspelo. Proveri USB i pokušaj ponovo.';
+    poruka(e.message, true);
+  } finally {
+    dugmad.forEach((dugme) => { if (dugme) dugme.disabled = false; });
+  }
+}
+
+$('#osvezi').onclick = ponovoPovezi;
 
 // Pri zatvaranju stranice aparat izlazi iz živog prikaza, da ne troši bateriju.
 window.addEventListener('pagehide', () => navigator.sendBeacon('/ugasi-prikaz'));

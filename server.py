@@ -4,9 +4,12 @@ Pokreće lokalni server na http://localhost:8400 sa živim prikazom,
 okidanjem, autofokusom, ručnim pomeranjem fokusa i osnovnim podešavanjima.
 """
 
+import hashlib
 import json
+import os
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 from datetime import datetime
@@ -20,6 +23,7 @@ KOREN = Path(__file__).parent
 SNIMCI = KOREN / "snimci"
 PREGLEDI = SNIMCI / "pregled"
 SLICICE = SNIMCI / ".slicice"
+PREUZIMANJA = SNIMCI / ".preuzeto.json"
 PODFOLDERI = {"provere": SNIMCI / "provere", "pregled": PREGLEDI}
 TIPOVI = {
     ".jpg": "image/jpeg",
@@ -28,6 +32,30 @@ TIPOVI = {
     ".mov": "video/quicktime",
 }
 PORT = 8400
+
+
+def kontrolni_zbir(putanja):
+    """Računa SHA-256 u blokovima, bez učitavanja celog snimka u memoriju."""
+    zbir = hashlib.sha256()
+    with putanja.open("rb") as fajl:
+        for blok in iter(lambda: fajl.read(1024 * 1024), b""):
+            zbir.update(blok)
+    return zbir.hexdigest()
+
+
+def provereni_prenosi():
+    try:
+        return json.loads(PREUZIMANJA.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def sacuvaj_proverene_prenose(prenosi):
+    SNIMCI.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=SNIMCI, prefix=".preuzeto-", delete=False) as fajl:
+        privremeni = Path(fajl.name)
+        json.dump(prenosi, fajl, ensure_ascii=False, indent=2)
+    os.replace(privremeni, PREUZIMANJA)
 
 # Nikon traži tačku fokusa u koordinatama celog kadra živog prikaza.
 # Pretpostavka za D3400, proveriti na aparatu i ispraviti ako tačka promašuje.
@@ -101,7 +129,19 @@ class Aparat:
         try:
             return self.izvrsi(lambda k: k.get_abilities().model)
         except gp.GPhoto2Error:
-            return None
+            return self.povezi_ponovo()
+
+    def povezi_ponovo(self):
+        """Zatvara moguću zastarelu USB vezu i uspostavlja novu."""
+        self.prikaz_trazen = False
+        with self.brava:
+            self._prekini()
+            try:
+                kamera = self._povezi()
+                return kamera.get_abilities().model
+            except gp.GPhoto2Error:
+                self._prekini()
+                return None
 
     def kadar(self):
         def radnja(k):
@@ -241,9 +281,46 @@ class Aparat:
             obidji("/")
             return fajlovi
 
-        fajlovi = self.izvrsi(radnja)
+        # PTP veza povremeno vrati samo generičku grešku pri čitanju direktorijuma.
+        # Jedno potpuno ponovno povezivanje rešava privremeno zauzetu/zastarelu vezu.
+        for pokusaj in range(2):
+            try:
+                fajlovi = self.izvrsi(radnja)
+                break
+            except gp.GPhoto2Error as greska:
+                if pokusaj:
+                    raise RuntimeError(
+                        "Aparat nije uspeo da izlista karticu ni posle ponovnog povezivanja. "
+                        "Proveri da je SD kartica ubačena i osveži spisak. "
+                        f"Detalji: {greska}"
+                    ) from greska
+                with self.brava:
+                    self._prekini()
+                time.sleep(0.4)
+
+        prenosi = provereni_prenosi()
         for fajl in fajlovi:
-            fajl["na_macu"] = (SNIMCI / fajl["ime"]).is_file()
+            lokalni = SNIMCI / fajl["ime"]
+            zapis = prenosi.get(fajl["putanja"], {})
+            fajl["velicina_maca"] = lokalni.stat().st_size if lokalni.is_file() else 0
+            velicina_kopije = zapis.get("velicina_maca")
+            mtime_kopije = zapis.get("mtime_ns")
+            provereno = (
+                lokalni.is_file()
+                and zapis.get("sha256")
+                and zapis.get("velicina_kartice") == fajl["velicina"]
+                and zapis.get("mtime_kartice") == fajl["vreme"]
+                and lokalni.stat().st_size == velicina_kopije
+                and lokalni.stat().st_mtime_ns == mtime_kopije
+            )
+            if provereno:
+                provereno = kontrolni_zbir(lokalni) == zapis["sha256"]
+            fajl["na_macu"] = bool(provereno)
+            fajl["status_maca"] = (
+                "provereno" if provereno else
+                "nepotpuno" if lokalni.is_file() and lokalni.stat().st_size < fajl["velicina"] else
+                "provera" if lokalni.is_file() else "nije"
+            )
         fajlovi.sort(key=lambda f: (f["vreme"], f["ime"]), reverse=True)
         return {"fajlovi": fajlovi}
 
@@ -263,17 +340,58 @@ class Aparat:
         return kes
 
     def preuzmi_sa_kartice(self, putanja):
-        """Prebacuje fajl sa kartice na Mac pod istim imenom. Za video pravi i MP4 za pregledač."""
+        """Preuzima u privremeni fajl, proverava potpunost i popravlja samo ako kopija nije ista."""
+        if not isinstance(putanja, str) or "/" not in putanja:
+            raise RuntimeError("Putanja fajla sa kartice nije ispravna")
         folder, ime = putanja.rsplit("/", 1)
+        if not ime or ime in (".", "..") or Path(ime).name != ime:
+            raise RuntimeError("Ime fajla sa kartice nije ispravno")
+        SNIMCI.mkdir(parents=True, exist_ok=True)
         cilj = SNIMCI / ime
+        with tempfile.NamedTemporaryFile(dir=SNIMCI, prefix=".preuzimanje-", delete=False) as privremeni:
+            privremena_putanja = Path(privremeni.name)
 
         def radnja(k):
+            info = k.file_get_info(folder, ime).file
             fajl = k.file_get(folder, ime, gp.GP_FILE_TYPE_NORMAL)
-            fajl.save(str(cilj))
+            fajl.save(str(privremena_putanja))
+            return info.size, info.mtime
 
-        self.izvrsi(radnja)
+        try:
+            velicina_kartice, mtime_kartice = self.izvrsi(radnja)
+            velicina_preuzeta = privremena_putanja.stat().st_size
+            if velicina_preuzeta != velicina_kartice:
+                raise RuntimeError(
+                    f"Kopija nije potpuna ({velicina_preuzeta} od {velicina_kartice} bajtova). "
+                    "Pokušaj ponovo."
+                )
+
+            sha256 = kontrolni_zbir(privremena_putanja)
+            ista_kopija = cilj.is_file() and cilj.stat().st_size == velicina_kartice and kontrolni_zbir(cilj) == sha256
+            if ista_kopija:
+                privremena_putanja.unlink()
+                stanje = "već-provereno"
+            else:
+                popravljena = cilj.is_file()
+                os.replace(privremena_putanja, cilj)
+                stanje = "popravljena-kopija" if popravljena else "preuzeto"
+
+            stat = cilj.stat()
+            prenosi = provereni_prenosi()
+            prenosi[putanja] = {
+                "velicina_kartice": velicina_kartice,
+                "mtime_kartice": mtime_kartice,
+                "velicina_maca": stat.st_size,
+                "mtime_ns": stat.st_mtime_ns,
+                "sha256": sha256,
+            }
+            sacuvaj_proverene_prenose(prenosi)
+        finally:
+            if privremena_putanja.exists():
+                privremena_putanja.unlink()
+
         pregled = napravi_pregled(cilj) if cilj.suffix.lower() == ".mov" else None
-        return {"ime": ime, "pregled": pregled}
+        return {"ime": ime, "pregled": pregled, "stanje": stanje}
 
     def podesavanja(self):
         def radnja(k):
@@ -467,6 +585,7 @@ class Zahtev(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         upit = {k: v[0] for k, v in parse_qs(url.query).items()}
         radnje = {
+            "/povezi": lambda: {"model": aparat.povezi_ponovo()},
             "/okini": lambda: {"snimak": aparat.okini()},
             "/tacka": lambda: aparat.tacka_fokusa(upit["x"], upit["y"]),
             "/autofokus": lambda: aparat.autofokus(),
