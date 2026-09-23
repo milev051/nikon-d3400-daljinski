@@ -34,6 +34,7 @@ sistem. Homebrew nije potreban.
 | `pokreni.command` | pokretanje dvoklikom |
 | `snimci/` | fotografije prebačene sa aparata |
 | `snimci/pregled/` | MP4 kopije videa za puštanje u pregledaču |
+| `snimci/odnosi-videa.txt` | izabrani odnos kadra uz putanju svakog završenog videa |
 | `snimci/.slicice/` | sličice za galeriju, mogu da se obrišu, prave se ponovo |
 
 ## Šta postoji sada
@@ -61,7 +62,8 @@ sistem. Homebrew nije potreban.
 - Video: počni i zaustavi sa računara, pa „Pogledaj na Mac-u" prebaci snimak
   sa kartice i pusti ga u pregledaču. Original (MOV) ide u `snimci/`, a kopija
   za pregledač (MP4, ista slika, AAC zvuk) u `snimci/pregled/`. Za MP4 treba
-  `ffmpeg`, bez njega se pušta MOV (radi u Safari-ju).
+  `ffmpeg`, bez njega se pušta MOV (radi u Safari-ju). Izabrani odnos kadra
+  zapisuje se uz putanju videa u `snimci/odnosi-videa.txt`; video se ne seče.
 - Levo je uska galerija sa sličicama u dve kolone; prikaz i kontrole su desno,
   tako da se na širokom ekranu sve vidi u jednom redu.
 - Galerija ima dve kartice:

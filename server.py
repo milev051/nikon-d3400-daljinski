@@ -24,6 +24,7 @@ SNIMCI = KOREN / "snimci"
 PREGLEDI = SNIMCI / "pregled"
 SLICICE = SNIMCI / ".slicice"
 PREUZIMANJA = SNIMCI / ".preuzeto.json"
+ODNOSI_VIDEA = SNIMCI / "odnosi-videa.txt"
 PODFOLDERI = {"provere": SNIMCI / "provere", "pregled": PREGLEDI}
 TIPOVI = {
     ".jpg": "image/jpeg",
@@ -32,6 +33,12 @@ TIPOVI = {
     ".mov": "video/quicktime",
 }
 PORT = 8400
+ODNOSI = {
+    "1.7778": "16:9 (FHD)",
+    "1.85": "1.85:1",
+    "2": "2:1",
+    "2.39": "2.39:1",
+}
 
 
 def kontrolni_zbir(putanja):
@@ -56,6 +63,25 @@ def sacuvaj_proverene_prenose(prenosi):
         privremeni = Path(fajl.name)
         json.dump(prenosi, fajl, ensure_ascii=False, indent=2)
     os.replace(privremeni, PREUZIMANJA)
+
+
+def zabelezi_odnos_videa(putanja, odnos):
+    """Upserta snimak i izabrani odnos u jedan čitljiv tekstualni spisak."""
+    if odnos not in ODNOSI:
+        return
+    SNIMCI.mkdir(parents=True, exist_ok=True)
+    zapisi = {}
+    if ODNOSI_VIDEA.is_file():
+        for red in ODNOSI_VIDEA.read_text(encoding="utf-8").splitlines()[1:]:
+            delovi = red.split("\t", 1)
+            if len(delovi) == 2:
+                zapisi[delovi[0]] = delovi[1]
+    zapisi[putanja] = ODNOSI[odnos]
+    sadrzaj = "Video sa kartice\tIzabrani odnos kadra\n"
+    sadrzaj += "".join(f"{ime}\t{vrednost}\n" for ime, vrednost in sorted(zapisi.items()))
+    privremeni = ODNOSI_VIDEA.with_suffix(".txt.tmp")
+    privremeni.write_text(sadrzaj, encoding="utf-8")
+    os.replace(privremeni, ODNOSI_VIDEA)
 
 # Nikon traži tačku fokusa u koordinatama celog kadra živog prikaza.
 # Pretpostavka za D3400, proveriti na aparatu i ispraviti ako tačka promašuje.
@@ -130,6 +156,21 @@ class Aparat:
             return self.izvrsi(lambda k: k.get_abilities().model)
         except gp.GPhoto2Error:
             return self.povezi_ponovo()
+
+    def status(self):
+        """Vraća model i nivo baterije u okviru iste USB sesije."""
+        def radnja(k):
+            model = k.get_abilities().model
+            try:
+                baterija = k.get_single_config("batterylevel").get_value()
+            except gp.GPhoto2Error:
+                baterija = None
+            return {"model": model, "baterija": baterija}
+
+        try:
+            return self.izvrsi(radnja)
+        except gp.GPhoto2Error:
+            return {"model": self.povezi_ponovo(), "baterija": None}
 
     def povezi_ponovo(self):
         """Zatvara moguću zastarelu USB vezu i uspostavlja novu."""
@@ -228,7 +269,7 @@ class Aparat:
     def rucni_fokus(self, korak):
         self.izvrsi(lambda k: self._postavi(k, "manualfocusdrive", float(korak)))
 
-    def video(self, ukljuci):
+    def video(self, ukljuci, odnos=None):
         """Pokreće ili zaustavlja video na kartici. Posle zaustavljanja vraća putanju novog snimka."""
 
         def radnja(k):
@@ -252,7 +293,11 @@ class Aparat:
                     return {"na_kartici": f"{podatak.folder}/{podatak.name}"}
             return {"na_kartici": None}
 
-        return self.izvrsi(radnja)
+        rezultat = self.izvrsi(radnja)
+        if not ukljuci and rezultat.get("na_kartici"):
+            zabelezi_odnos_videa(rezultat["na_kartici"], odnos)
+            rezultat["odnos"] = ODNOSI.get(odnos)
+        return rezultat
 
     def sadrzaj_kartice(self):
         """Svi fajlovi na kartici aparata, najnoviji prvi."""
@@ -348,17 +393,40 @@ class Aparat:
             raise RuntimeError("Ime fajla sa kartice nije ispravno")
         SNIMCI.mkdir(parents=True, exist_ok=True)
         cilj = SNIMCI / ime
-        with tempfile.NamedTemporaryFile(dir=SNIMCI, prefix=".preuzimanje-", delete=False) as privremeni:
+        with tempfile.NamedTemporaryFile(
+            dir=SNIMCI, prefix=".preuzimanje-", suffix=Path(ime).suffix, delete=False
+        ) as privremeni:
             privremena_putanja = Path(privremeni.name)
+        privremena_putanja.unlink()
 
         def radnja(k):
-            info = k.file_get_info(folder, ime).file
+            # Omotač mora ostati živ: `info.file` je samo pogled na njegove podatke.
+            info_omotac = k.file_get_info(folder, ime)
+            info = info_omotac.file
             fajl = k.file_get(folder, ime, gp.GP_FILE_TYPE_NORMAL)
-            fajl.save(str(privremena_putanja))
+            podaci = fajl.get_data_and_size()
+            if len(podaci) != info.size:
+                raise RuntimeError(
+                    f"Aparat je vratio {len(podaci)} od {info.size} bajtova za {ime}. "
+                    "Kopija nije sačuvana; osveži vezu i pokušaj ponovo."
+                )
+            with privremena_putanja.open("wb") as izlaz:
+                upisano = izlaz.write(podaci)
+            if upisano != info.size:
+                raise RuntimeError(f"Na Mac je upisano {upisano} od {info.size} bajtova za {ime}")
             return info.size, info.mtime
 
         try:
-            velicina_kartice, mtime_kartice = self.izvrsi(radnja)
+            for pokusaj in range(2):
+                try:
+                    velicina_kartice, mtime_kartice = self.izvrsi(radnja)
+                    break
+                except (gp.GPhoto2Error, RuntimeError):
+                    if pokusaj:
+                        raise
+                    with self.brava:
+                        self._prekini()
+                    time.sleep(0.4)
             velicina_preuzeta = privremena_putanja.stat().st_size
             if velicina_preuzeta != velicina_kartice:
                 raise RuntimeError(
@@ -539,7 +607,7 @@ class Zahtev(BaseHTTPRequestHandler):
         if url.path == "/":
             return self._fajl(KOREN / "index.html", "text/html; charset=utf-8")
         if url.path == "/status":
-            return self._json({"model": aparat.model()})
+            return self._json(aparat.status())
         if url.path == "/podesavanja":
             return self._obradi(lambda: {"podesavanja": aparat.podesavanja()})
         if url.path == "/snimci":
@@ -590,7 +658,7 @@ class Zahtev(BaseHTTPRequestHandler):
             "/tacka": lambda: aparat.tacka_fokusa(upit["x"], upit["y"]),
             "/autofokus": lambda: aparat.autofokus(),
             "/fokus": lambda: aparat.rucni_fokus(upit.get("korak", 0)),
-            "/video": lambda: aparat.video(upit.get("ukljuci") == "1"),
+            "/video": lambda: aparat.video(upit.get("ukljuci") == "1", upit.get("format")),
             "/preuzmi": lambda: aparat.preuzmi_sa_kartice(upit["putanja"]),
             "/postavi": lambda: aparat.postavi(upit["ime"], upit["vrednost"]),
             "/ugasi-prikaz": lambda: aparat.ugasi_zivi_prikaz(),

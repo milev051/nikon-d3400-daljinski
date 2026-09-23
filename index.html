@@ -10,7 +10,9 @@
   body { margin: 0; font: 15px/1.4 -apple-system, system-ui, sans-serif; background: var(--poz); color: var(--tekst); height: 100vh; overflow: hidden; }
   header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2a2a; }
   header b { color: var(--akcent); }
-  #status { color: var(--sivo); }
+  .zaglavlje-desno { display: flex; align-items: center; gap: 16px; }
+  #status, #baterija { color: var(--sivo); }
+  #baterija { font-variant-numeric: tabular-nums; }
   .radni { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 12px; height: calc(100vh - 52px); padding: 12px; min-height: 0; }
   main { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; padding: 0; align-items: stretch; min-width: 0; min-height: 0; }
   .kamera { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: 0; }
@@ -26,6 +28,7 @@
   .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 100px) * 1.5)); min-width: 0; margin: 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
   .prikaz { position: relative; }
   .prikaz img { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; }
+  #fokusStatus { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #000c; border: 1px solid #ffffff55; border-radius: 6px; padding: 8px 12px; display: none; pointer-events: none; }
   #oznaka { position: absolute; width: 48px; height: 48px; margin: -24px 0 0 -24px; border: 2px solid var(--akcent); border-radius: 4px; pointer-events: none; display: none; }
   #bioskop { position: fixed; inset: 0; background: #000e; display: none; place-items: center; z-index: 10; padding: 16px; }
   #bioskop video { max-width: 100%; max-height: 90vh; }
@@ -91,7 +94,7 @@
 <body>
 <header>
   <div><b>Nikon D3400</b> daljinski</div>
-  <div id="status">Tražim aparat…</div>
+  <div class="zaglavlje-desno"><span id="baterija"></span><div id="status">Tražim aparat…</div></div>
 </header>
 
 <div class="radni">
@@ -181,7 +184,7 @@ function prikaz(ukljuci, obavestiServer = true) {
   prikazUkljucen = ukljuci;
   const okvir = $('#prikaz');
   okvir.innerHTML = ukljuci
-    ? `<img src="/prikaz?t=${Date.now()}" alt="Živi prikaz"><div id="okvirVidea"><span></span></div><div id="oznaka"></div>`
+    ? `<img src="/prikaz?t=${Date.now()}" alt="Živi prikaz"><div id="fokusStatus">◎ Izoštravam…</div><div id="okvirVidea"><span></span></div><div id="oznaka"></div>`
     : '<div style="text-align:center"><button class="glavno">Uključi živi prikaz</button><br><span>Dok je uključen, baterija se brže prazni</span></div>';
   if (ukljuci) okvir.querySelector('img').onclick = izaberiTacku;
   else okvir.querySelector('button').onclick = () => prikaz(true);
@@ -250,7 +253,9 @@ function izaberiTacku(e) {
 
 async function izostri() {
   const dugme = $('#dugmeAf');
+  const oznakaFokusa = $('#fokusStatus');
   dugme.textContent = '◎ Oštrim…';
+  if (oznakaFokusa) oznakaFokusa.style.display = 'block';
   try {
     const podaci = await posalji('/autofokus', dugme);
     if (podaci.rezim_promenjen) {
@@ -261,6 +266,7 @@ async function izostri() {
     }
   } finally {
     dugme.textContent = '◎ Izoštri (AF)';
+    if (oznakaFokusa) oznakaFokusa.style.display = 'none';
   }
 }
 
@@ -288,6 +294,7 @@ $('#format').onchange = azurirajOkvirVidea;
 let poslednjiVideo = null;
 let pocetakVidea = 0;
 let brojac = null;
+let odnosSnimanja = '1.7778';
 
 function postaviRezim(novi) {
   if (videoUkljucen) return poruka('Prvo zaustavi snimanje', true);
@@ -309,7 +316,11 @@ $('#okidac').onclick = async (e) => {
     poruka('Sačuvano: ' + podaci.snimak);
     return ucitajGaleriju();
   }
-  const podaci = await posalji('/video?ukljuci=' + (videoUkljucen ? 0 : 1), okidac);
+  if (!videoUkljucen) odnosSnimanja = $('#format').value;
+  const podaci = await posalji(
+    '/video?ukljuci=' + (videoUkljucen ? 0 : 1) + '&format=' + encodeURIComponent(odnosSnimanja),
+    okidac,
+  );
   videoUkljucen = !videoUkljucen;
   okidac.classList.toggle('snima', videoUkljucen);
   okidac.title = videoUkljucen ? 'Zaustavi snimanje (razmaknica)' : 'Počni snimanje (razmaknica)';
@@ -326,7 +337,7 @@ $('#okidac').onclick = async (e) => {
     $('#vreme').textContent = '';
     poslednjiVideo = podaci.na_kartici;
     if (poslednjiVideo) {
-      poruka('Video je na kartici: ' + poslednjiVideo.split('/').pop());
+      poruka(`Video je na kartici: ${poslednjiVideo.split('/').pop()} · odnos ${podaci.odnos || 'nije zabeležen'}`);
       $('#dugmePogledaj').hidden = false;
     } else {
       poruka('Snimanje je zaustavljeno, ali aparat nije javio novi fajl', true);
@@ -505,7 +516,7 @@ async function ucitajGaleriju() {
       : '<p class="prazno">Kartica je prazna.</p>';
   } else {
     const { snimci } = await (await fetch('/snimci')).json();
-    const prikazani = bezDuplikata(snimci.map((s) => ({ ...s })));
+    const prikazani = bezDuplikata(snimci.filter((s) => s.ime !== 'odnosi-videa.txt').map((s) => ({ ...s })));
     $('#galerijaInfo').textContent = `${problemKartice}${snimci.length} fajlova u folderu snimci/. Klik otvara.`;
     mreza.innerHTML = prikazani.length
       ? prikazani.map((f) => plocica({
@@ -591,13 +602,18 @@ $('#samoSlike input').onchange = ucitajGaleriju;
 
 async function proveriAparat() {
   try {
-    const { model } = await (await fetch('/status')).json();
+    const { model, baterija } = await (await fetch('/status')).json();
+    prikaziBateriju(baterija);
     $('#status').textContent = model ? 'Povezan: ' + model : 'Aparat nije pronađen. Proveri USB i klikni „Osveži vezu".';
     return !!model;
   } catch (e) {
     $('#status').textContent = 'Server nije dostupan. Ponovo pokreni aplikaciju.';
     return false;
   }
+}
+
+function prikaziBateriju(vrednost) {
+  $('#baterija').textContent = vrednost ? `🔋 ${vrednost}` : '';
 }
 
 async function ponovoPovezi(e) {
@@ -618,6 +634,7 @@ async function ponovoPovezi(e) {
       return;
     }
     $('#status').textContent = 'Povezan: ' + podaci.model;
+    await proveriBateriju();
     tab = 'aparat';
     document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t.dataset.tab === 'aparat'));
     prikaz(true);
@@ -629,6 +646,16 @@ async function ponovoPovezi(e) {
     poruka(e.message, true);
   } finally {
     dugmad.forEach((dugme) => { if (dugme) dugme.disabled = false; });
+  }
+}
+
+async function proveriBateriju() {
+  try {
+    const odg = await fetch('/status');
+    const podaci = await odg.json();
+    prikaziBateriju(podaci.baterija);
+  } catch (_) {
+    prikaziBateriju(null);
   }
 }
 
