@@ -27,7 +27,7 @@
   .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 50px) * 1.5)); min-width: 0; margin: 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
   .prikaz { position: relative; }
   .prikaz img { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; }
-  #okvirCeleSlike { position: absolute; z-index: 2; border: 1px solid #ffffff70; pointer-events: none; }
+  #okvirCeleSlike { position: absolute; z-index: 2; display: none; border: 1px solid #ffffff70; pointer-events: none; }
   #okvirCeleSlike span { position: absolute; top: 6px; right: 8px; font-size: 12px; color: var(--tekst); background: #000b; padding: 2px 6px; border-radius: 4px; }
   #fokusStatus { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #000c; border: 1px solid #ffffff55; border-radius: 6px; padding: 8px 12px; display: none; pointer-events: none; }
   #oznaka { position: absolute; z-index: 3; width: 48px; height: 48px; margin: -24px 0 0 -24px; border: 2px solid var(--akcent); border-radius: 4px; pointer-events: none; display: none; }
@@ -43,7 +43,7 @@
   .glavni-red { align-items: center; }
   .glavni-red > button, .glavni-red > select { width: 100%; min-width: 0; }
   .glavni-red .razmak { display: none; }
-  #dugmeGalerija, #format, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
+  #dugmeGalerija, #format, #dugmeVodic, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
   #vreme:empty { display: none; }
   .status-aparata { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; color: var(--sivo); font-size: 13px; }
   .status-aparata b { color: var(--akcent); }
@@ -135,6 +135,7 @@
         <option value="2">2:1</option>
         <option value="2.39">2.39:1 široki film</option>
       </select>
+      <button id="dugmeVodic" aria-pressed="false">▦ Vodič kadra: isključen</button>
       <span id="vreme"></span>
       <button id="dugmePogledaj" class="glavno" hidden>Pogledaj na Mac-u</button>
       <button class="glavno" id="dugmeAf">◎ Izoštri</button>
@@ -171,6 +172,19 @@ $('#dugmeGalerija').onclick = () => {
   postaviGalerijuSakrivenu(!$('.radni').classList.contains('galerija-sakrivena'));
 };
 
+function postaviVodic(aktivan) {
+  vodicAktivan = aktivan;
+  const dugme = $('#dugmeVodic');
+  dugme.textContent = aktivan ? '▦ Vodič kadra: uključen' : '▦ Vodič kadra: isključen';
+  dugme.classList.toggle('aktivno', aktivan);
+  dugme.setAttribute('aria-pressed', String(aktivan));
+  localStorage.setItem('vodicKadra', aktivan ? 'da' : 'ne');
+  azurirajOkvirVidea();
+}
+
+postaviVodic(localStorage.getItem('vodicKadra') === 'da');
+$('#dugmeVodic').onclick = () => postaviVodic(!vodicAktivan);
+
 function poruka(tekst, greska = false) {
   const el = $('#poruka');
   el.textContent = tekst;
@@ -204,7 +218,6 @@ function prikaz(ukljuci, obavestiServer = true) {
     : '<div style="text-align:center"><button class="glavno">Uključi živi prikaz</button><br><span>Dok je uključen, baterija se brže prazni</span></div>';
   if (ukljuci) okvir.querySelector('img').onclick = izaberiTacku;
   else {
-    vodicAktivan = false;
     okvir.querySelector('button').onclick = () => prikaz(true);
   }
   $('#dugmePrikaz').textContent = ukljuci ? 'Ugasi živi prikaz' : 'Uključi živi prikaz';
@@ -233,6 +246,7 @@ function azurirajOkvirVidea() {
   const p = povrsinaSlike(img);
   const ceoKadar = $('#okvirCeleSlike');
   Object.assign(ceoKadar.style, {
+    display: vodicAktivan ? 'block' : 'none',
     left: p.levo + 'px',
     width: p.sirina + 'px',
     top: p.gore + 'px',
@@ -249,16 +263,11 @@ function azurirajOkvirVidea() {
     height: visina + 'px',
   });
 }
-function aktivirajVodic() {
-  vodicAktivan = true;
-  azurirajOkvirVidea();
-}
 setInterval(azurirajOkvirVidea, 500);
 window.addEventListener('resize', azurirajOkvirVidea);
 
 // Pretvara klik u deo kadra od 0 do 1, uz crne trake koje pravi object-fit: contain.
 function izaberiTacku(e) {
-  aktivirajVodic();
   const img = e.target;
   const okvir = img.getBoundingClientRect();
   const { levo, gore, sirina, visina } = povrsinaSlike(img);
@@ -316,8 +325,7 @@ $('#dugmePusti').onclick = async (e) => {
   poruka('Aparat je pušten');
 };
 
-$('#format').onchange = aktivirajVodic;
-$('#format').onclick = aktivirajVodic;
+$('#format').onchange = azurirajOkvirVidea;
 
 let poslednjiVideo = null;
 let pocetakVidea = 0;
@@ -334,7 +342,6 @@ $('#dugmeVideo').onclick = async (e) => {
   const dugme = e.currentTarget;
   if (!videoUkljucen) {
     odnosSnimanja = $('#format').value;
-    aktivirajVodic();
   }
   const podaci = await posalji(
     '/video?ukljuci=' + (videoUkljucen ? 0 : 1) + '&format=' + encodeURIComponent(odnosSnimanja),
