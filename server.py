@@ -484,27 +484,49 @@ class Aparat:
         fajlovi.sort(key=lambda f: (f["vreme"], f["ime"]), reverse=True)
         return {"fajlovi": fajlovi}
 
-    def slicica_sa_kartice(self, putanja):
-        """Sličica sa aparata se čuva lokalno kao WebP kada je enkoder dostupan."""
+    def slicica_sa_kartice(self, putanja, sirina=480):
+        """Sličica sa aparata se čuva lokalno kao WebP; izabrani NEF može dobiti veći pregled."""
         folder, ime = putanja.rsplit("/", 1)
         kljuc = hashlib.sha256(putanja.encode()).hexdigest()
-        kes = SLICICE / ("kartica-" + kljuc + ".webp")
+        sufiks = f"-{sirina}" if sirina > 480 else ""
+        kes = SLICICE / ("kartica-" + kljuc + sufiks + ".webp")
         jpg = kes.with_suffix(".jpg")
         if kes.is_file():
             return kes
         if jpg.is_file():
             return jpg
-        if not kes.is_file():
+        SLICICE.mkdir(parents=True, exist_ok=True)
+        if sirina > 480 and Path(ime).suffix.lower() == ".nef":
+            izvor = SLICICE / ("kartica-" + kljuc + "-izvor.nef")
+            umanjeni = SLICICE / ("kartica-" + kljuc + "-izvor.jpg")
+            try:
+                def radnja(k):
+                    fajl = k.file_get(folder, ime, gp.GP_FILE_TYPE_NORMAL)
+                    return bytes(fajl.get_data_and_size())
 
-            def radnja(k):
-                fajl = k.file_get(folder, ime, gp.GP_FILE_TYPE_PREVIEW)
-                return bytes(fajl.get_data_and_size())
+                izvor.write_bytes(self.izvrsi(radnja))
+                rezultat = subprocess.run(
+                    ["sips", "-s", "format", "jpeg", "-Z", str(sirina), str(izvor), "--out", str(umanjeni)],
+                    capture_output=True,
+                )
+                if rezultat.returncode != 0 or not umanjeni.is_file():
+                    raise RuntimeError("Aparat nije uspeo da napravi veći pregled NEF fotografije")
+                webp = konvertuj_u_webp(umanjeni, kes, sirina)
+                if webp:
+                    return webp
+                os.replace(umanjeni, jpg)
+                return jpg
+            finally:
+                izvor.unlink(missing_ok=True)
+                umanjeni.unlink(missing_ok=True)
 
-            podaci = self.izvrsi(radnja)
-            SLICICE.mkdir(parents=True, exist_ok=True)
-            jpg.write_bytes(podaci)
-            return konvertuj_u_webp(jpg, kes, 480) or jpg
-        return kes
+        def radnja(k):
+            fajl = k.file_get(folder, ime, gp.GP_FILE_TYPE_PREVIEW)
+            return bytes(fajl.get_data_and_size())
+
+        podaci = self.izvrsi(radnja)
+        jpg.write_bytes(podaci)
+        return konvertuj_u_webp(jpg, kes, sirina) or jpg
 
     def preuzmi_sa_kartice(self, putanja):
         """Preuzima u privremeni fajl, proverava potpunost i popravlja samo ako kopija nije ista."""
@@ -650,9 +672,10 @@ def nadji_ffmpeg():
     )
 
 
-def lokalna_slicica(fajl):
+def lokalna_slicica(fajl, sirina=480):
     """Pravi umanjenu WebP sličicu i pamti je pod putanjom relativnom prema snimci/."""
-    kljuc = hashlib.sha256(fajl.relative_to(SNIMCI).as_posix().encode()).hexdigest()
+    osnovni_kljuc = hashlib.sha256(fajl.relative_to(SNIMCI).as_posix().encode()).hexdigest()
+    kljuc = osnovni_kljuc + (f"-{sirina}" if sirina > 480 else "")
     kes = SLICICE / (kljuc + ".webp")
     jpg = kes.with_suffix(".jpg")
     if kes.is_file() and kes.stat().st_mtime >= fajl.stat().st_mtime:
@@ -662,17 +685,17 @@ def lokalna_slicica(fajl):
         ffmpeg = nadji_ffmpeg()
         if ffmpeg:
             rezultat = subprocess.run(
-                [ffmpeg, "-y", "-v", "error", "-i", str(fajl), "-frames:v", "1", "-vf", "scale=480:-2", "-c:v", "libwebp", "-quality", "72", str(kes)],
+                [ffmpeg, "-y", "-v", "error", "-i", str(fajl), "-frames:v", "1", "-vf", f"scale={sirina}:-2", "-c:v", "libwebp", "-quality", "72", str(kes)],
                 capture_output=True,
             )
             if rezultat.returncode == 0 and kes.is_file():
                 return kes
         return None
     privremeni = SLICICE / (kljuc + "-izvor.jpg")
-    rezultat = subprocess.run(["sips", "-s", "format", "jpeg", "-Z", "480", str(fajl), "--out", str(privremeni)], capture_output=True)
+    rezultat = subprocess.run(["sips", "-s", "format", "jpeg", "-Z", str(sirina), str(fajl), "--out", str(privremeni)], capture_output=True)
     if rezultat.returncode != 0 or not privremeni.is_file():
         return None
-    webp = konvertuj_u_webp(privremeni, kes, 480)
+    webp = konvertuj_u_webp(privremeni, kes, sirina)
     if not webp:
         os.replace(privremeni, jpg)
         return jpg
@@ -790,16 +813,24 @@ class Zahtev(BaseHTTPRequestHandler):
             fajl = (SNIMCI / unquote(url.path[len("/slicica/"):])).resolve()
             if not fajl.is_relative_to(SNIMCI.resolve()):
                 return self._json({"greska": "Neispravna putanja"}, 400)
-            kes = lokalna_slicica(fajl) if fajl.is_file() else None
+            try:
+                sirina = max(480, min(1920, int(parse_qs(url.query).get("sirina", ["480"])[0])))
+            except ValueError:
+                sirina = 480
+            kes = lokalna_slicica(fajl, sirina) if fajl.is_file() else None
             if kes is not None:
                 return self._fajl(kes, "image/webp" if kes.suffix == ".webp" else "image/jpeg")
         if url.path == "/kartica":
             return self._obradi(aparat.sadrzaj_kartice)
         if url.path == "/kartica/slicica":
             try:
-                kes = aparat.slicica_sa_kartice(parse_qs(url.query)["putanja"][0])
+                upit = parse_qs(url.query)
+                sirina = max(480, min(1920, int(upit.get("sirina", ["480"])[0])))
+                kes = aparat.slicica_sa_kartice(upit["putanja"][0], sirina)
                 return self._fajl(kes, "image/webp" if kes.suffix == ".webp" else "image/jpeg")
-            except (gp.GPhoto2Error, KeyError):
+            except (gp.GPhoto2Error, KeyError, ValueError, RuntimeError) as greska:
+                if isinstance(greska, RuntimeError):
+                    return self._json({"greska": str(greska)}, 500)
                 return self._json({"greska": "Aparat nema sličicu za ovaj fajl"}, 404)
         if url.path.startswith("/snimci/"):
             fajl = (SNIMCI / unquote(url.path[len("/snimci/"):])).resolve()
