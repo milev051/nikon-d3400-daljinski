@@ -9,6 +9,7 @@
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.4 -apple-system, system-ui, sans-serif; background: var(--poz); color: var(--tekst); height: 100vh; overflow: hidden; }
   #status { color: var(--sivo); font-variant-numeric: tabular-nums; }
+  #status[hidden] { display: none; }
   .radni { display: grid; grid-template-columns: 310px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; height: 100vh; padding: 12px; min-height: 0; }
   .radni.galerija-sakrivena { grid-template-columns: minmax(0, 1fr); }
   .radni.galerija-sakrivena > .galerija { display: none; }
@@ -41,7 +42,7 @@
   #mrezaCentra .centar.vertikalna { width: 2px; }
   #mrezaCentra .centar.horizontalna { height: 2px; }
   #fokusStatus { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #000c; border: 1px solid #ffffff55; border-radius: 6px; padding: 8px 12px; display: none; pointer-events: none; }
-  #oznaka { position: absolute; z-index: 3; width: 48px; height: 48px; margin: -24px 0 0 -24px; border: 2px solid var(--akcent); border-radius: 4px; pointer-events: none; display: none; }
+  #oznaka { position: absolute; z-index: 5; width: 48px; height: 48px; margin: -24px 0 0 -24px; border: 2px solid var(--akcent); border-radius: 4px; pointer-events: none; display: none; }
   #bioskop { position: fixed; inset: 0; background: #000e; display: none; place-items: center; z-index: 10; padding: 16px; }
   #bioskop video { max-width: 100%; max-height: 90vh; }
   #bioskop button { position: fixed; top: 12px; right: 16px; }
@@ -56,21 +57,25 @@
   #vreme { color: #f66; align-self: center; font-variant-numeric: tabular-nums; }
   .prikaz span { color: var(--sivo); }
   .prikaz button { font-size: 16px; padding: 14px 22px; }
-  .kontrole { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .kontrole { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
   #komandeKamera { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
   #komandeKamera button { width: 100%; min-width: 0; }
-  #komandeKamera #osvezi, #komandeKamera #dugmeFlip { grid-column: 1 / -1; }
+  #komandeKamera #dugmeFlip { grid-column: 1 / -1; }
   #komandeKamera.plutajuce { position: fixed; z-index: 21; top: 12px; right: 12px; width: min(270px, calc(100vw - 24px)); padding: 10px; background: #1c1c1cf5; border: 1px solid #555; border-radius: 8px; box-shadow: 0 4px 20px #0009; }
   #redPrikaza { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; gap: 8px; }
   #redPrikaza button { width: 100%; min-width: 0; min-height: 64px; display: flex; align-items: center; justify-content: center; }
-  #okvirVidea { position: absolute; z-index: 1; border-top: 2px solid var(--akcent); border-bottom: 2px solid var(--akcent); pointer-events: none; display: none; }
+  #okvirVidea { position: absolute; z-index: 4; border: 0; pointer-events: none; display: none; }
+  #okvirVidea::before, #okvirVidea::after { content: ''; position: absolute; left: 0; right: 0; height: var(--traka-van-kadra); background: #000; pointer-events: none; }
+  #okvirVidea::before { bottom: 100%; }
+  #okvirVidea::after { top: 100%; }
   #okvirVidea span { position: absolute; top: 6px; left: 8px; font-size: 12px; background: #000b; padding: 2px 6px; border-radius: 4px; }
   .glavni-red { align-items: center; }
   .glavni-red > button, .glavni-red > select { width: 100%; min-width: 0; }
   .glavni-red .razmak { display: none; }
-  #format, #dugmeVodic, #dugmeMreza, #vreme, #dugmePogledaj { grid-column: 1 / -1; }
+  #format, #vreme, #dugmePogledaj { grid-column: 1 / -1; }
+  #dugmeVodic, #dugmeMreza { grid-column: auto; padding: 10px 8px; font-size: 20px; }
   #vreme:empty { display: none; }
-  .status-aparata { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; color: var(--sivo); font-size: 13px; }
+  #dugmeVodic.aktivno, #dugmeMreza.aktivno { background: var(--akcent); border-color: var(--akcent); color: #000; }
   .akcija-snimanja { display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--sivo); font-size: 12px; }
   #akcijeSnimanja { grid-column: 1 / -1; display: flex; justify-content: center; gap: 24px; }
   #akcijeSnimanja.plutajuce { position: fixed; z-index: 20; right: 20px; bottom: 20px; padding: 10px 16px; background: #111e; border: 1px solid #555; border-radius: 12px; box-shadow: 0 4px 20px #0009; backdrop-filter: blur(8px); }
@@ -85,6 +90,8 @@
   button.glavno { background: var(--akcent); color: #000; border-color: var(--akcent); font-weight: 600; }
   button.aktivno { border-color: #e33; color: #f66; }
   aside { min-width: 0; overflow-y: auto; max-height: 100%; padding-right: 3px; }
+  #mreza, aside, .kamera, .galerija { scrollbar-width: none; -ms-overflow-style: none; }
+  #mreza::-webkit-scrollbar, aside::-webkit-scrollbar, .kamera::-webkit-scrollbar, .galerija::-webkit-scrollbar { display: none; width: 0; height: 0; }
   aside section { background: var(--pov); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--sivo); margin: 0 0 10px; }
   label { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 6px; font-size: 14px; }
@@ -107,11 +114,12 @@
   .plocica.proverena { border-color: #1a7f37; }
   .plocica .slika { position: relative; width: 100%; min-height: 60px; aspect-ratio: 3 / 2; background: #0a0a0a; display: grid; place-items: center; color: var(--sivo); font-size: 13px; overflow: hidden; }
   .plocica .slika img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-  .plocica .znak { position: absolute; top: 6px; left: 6px; background: #000b; border-radius: 4px; padding: 2px 6px; font-size: 11px; }
+  .plocica .znak { position: absolute; top: 6px; left: 6px; background: #000b; border-radius: 4px; padding: 2px 4px; font-size: 9px; }
   .plocica .znak.video { background: #b22; }
   .plocica .kvacica { position: absolute; top: 6px; right: 6px; background: #1a7f37; border-radius: 4px; padding: 2px 6px; font-size: 11px; }
   .plocica .kvacica.provera { background: #735600; }
   .plocica .kvacica.nepotpuno { background: #8b2828; }
+  .plocica .naziv { position: absolute; right: 4px; bottom: 4px; max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 3px; border-radius: 3px; background: #000b; color: #eee; font-size: 9px; line-height: 1.2; }
   .prazno { color: var(--sivo); padding: 24px 0; }
   #poruka { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #333; padding: 8px 14px; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   #poruka.vidljivo { opacity: 1; }
@@ -143,14 +151,11 @@
 
   <aside>
     <div id="komandeKamera">
-    <button id="osvezi" title="Ponovo poveži USB vezu">↻ Osveži vezu</button>
     <button id="dugmeGalerija" aria-expanded="true">◀ Sakrij galeriju</button>
     <button id="dugmePanel" aria-expanded="true">⤢ Sakrij desni panel</button>
     <button id="dugmeFlip" aria-pressed="false">↔ Ogledalo prikaza: isključeno</button>
     </div>
-    <section class="status-aparata">
-      <span id="status">Tražim aparat…</span>
-    </section>
+    <span id="status" hidden></span>
     <div class="kontrole glavni-red" id="kontrole">
       <div id="redPrikaza">
         <button id="dugmePrikaz">Uključi živi prikaz</button>
@@ -159,16 +164,14 @@
       <div id="akcijeSnimanja">
         <div class="akcija-snimanja">
           <button id="dugmeFoto" class="okidac" title="Slikaj" aria-label="Slikaj"></button>
-          <span>Slikaj</span>
         </div>
         <div class="akcija-snimanja">
           <button id="dugmeVideo" class="okidac video" title="Počni snimanje" aria-label="Počni snimanje"></button>
-          <span id="oznakaDugmetaVidea">Snimi video</span>
         </div>
       </div>
       <div id="serijaKontrole" aria-label="Serijsko slikanje">
         <label>Broj slika<input id="brojSlika" type="number" min="1" max="500" value="10"></label>
-        <label>Razmak (ms)<input id="razmakSerije" type="number" min="0" max="60000" step="100" value="1000"></label>
+        <label>Razmak (s)<input id="razmakSerije" type="text" inputmode="decimal" value="1"></label>
         <button id="pokreniSeriju" class="glavno">▶ Pokreni seriju</button>
         <button id="zaustaviSeriju" hidden>■ Zaustavi seriju</button>
         <span id="stanjeSerije" aria-live="polite"></span>
@@ -179,8 +182,8 @@
         <option value="2">2:1</option>
         <option value="2.39">2.39:1 široki film</option>
       </select>
-      <button id="dugmeVodic" aria-pressed="false">▦ Vodič kadra: isključen</button>
-      <button id="dugmeMreza" aria-pressed="true">⊞ Mreža centra: uključena</button>
+      <button id="dugmeVodic" title="Vodič kadra" aria-label="Vodič kadra" aria-pressed="false">▦</button>
+      <button id="dugmeMreza" title="Mreža centra" aria-label="Mreža centra" aria-pressed="true">⊞</button>
       <span id="vreme"></span>
       <button id="dugmePogledaj" class="glavno" hidden>Pogledaj na Mac-u</button>
     </div>
@@ -204,18 +207,8 @@ let mrezaCentraAktivna = true;
 let flipPrikaza = false;
 let intervalProvereSerije = null;
 let poslednjiSpoljniBroj = 0;
-let nazivAparata = null;
-let nivoBaterije = null;
 let pregledIzvor = null;
 let sirinaPregleda = 0;
-
-function prikaziStatusAparata(model, baterija) {
-  nazivAparata = model || null;
-  nivoBaterije = baterija || null;
-  $('#status').textContent = nazivAparata
-    ? `${nazivAparata}${nivoBaterije ? ' · 🔋 ' + nivoBaterije : ''}`
-    : 'Aparat nije pronađen. Proveri USB i klikni „Osveži vezu".';
-}
 
 function sirinaPregledaUklopljena() {
   const sirina = $('#prikaz').getBoundingClientRect().width * (window.devicePixelRatio || 1);
@@ -308,7 +301,8 @@ $('#dugmePanel').onclick = () => postaviPanelSakriven(!$('main').classList.conta
 function postaviVodic(aktivan) {
   vodicAktivan = aktivan;
   const dugme = $('#dugmeVodic');
-  dugme.textContent = aktivan ? '▦ Vodič kadra: uključen' : '▦ Vodič kadra: isključen';
+  dugme.textContent = '▦';
+  dugme.title = aktivan ? 'Vodič kadra: uključen' : 'Vodič kadra: isključen';
   dugme.classList.toggle('aktivno', aktivan);
   dugme.setAttribute('aria-pressed', String(aktivan));
   localStorage.setItem('vodicKadra', aktivan ? 'da' : 'ne');
@@ -321,7 +315,8 @@ $('#dugmeVodic').onclick = () => postaviVodic(!vodicAktivan);
 function postaviMrezuCentra(aktivna) {
   mrezaCentraAktivna = aktivna;
   const dugme = $('#dugmeMreza');
-  dugme.textContent = aktivna ? '⊞ Mreža centra: uključena' : '⊞ Mreža centra: isključena';
+  dugme.textContent = '⊞';
+  dugme.title = aktivna ? 'Mreža centra: uključena' : 'Mreža centra: isključena';
   dugme.classList.toggle('aktivno', aktivna);
   dugme.setAttribute('aria-pressed', String(aktivna));
   localStorage.setItem('mrezaCentra', aktivna ? 'da' : 'ne');
@@ -411,6 +406,7 @@ function azurirajOkvirVidea() {
   });
   const format = $('#format');
   const visina = p.sirina / Number(format.value);
+  const visinaVanKadraa = Math.max(0, (p.visina - visina) / 2);
   okvir.querySelector('span').textContent = format.value === '1.7778' ? 'video FHD 16:9' : format.selectedOptions[0].text + ', isečak iz FHD';
   Object.assign(okvir.style, {
     display: vodicAktivan ? 'block' : 'none',
@@ -418,6 +414,7 @@ function azurirajOkvirVidea() {
     width: p.sirina + 'px',
     top: p.gore + (p.visina - visina) / 2 + 'px',
     height: visina + 'px',
+    '--traka-van-kadra': visinaVanKadraa + 'px',
   });
 }
 setInterval(azurirajOkvirVidea, 500);
@@ -525,9 +522,11 @@ $('#pokreniSeriju').onclick = async (e) => {
     return;
   }
   const broj = Math.max(1, Math.min(500, Number($('#brojSlika').value) || 1));
-  const interval = Math.max(0, Math.min(60000, Number($('#razmakSerije').value) || 0));
+  const unetRazmak = Number($('#razmakSerije').value.trim().replace(',', '.'));
+  const intervalSekundi = Math.max(0, Math.min(60, Number.isFinite(unetRazmak) ? unetRazmak : 0));
+  const interval = Math.round(intervalSekundi * 1000);
   $('#brojSlika').value = broj;
-  $('#razmakSerije').value = interval;
+  $('#razmakSerije').value = intervalSekundi;
   const stanje = await posalji('/serija/start?broj=' + broj + '&interval=' + interval, e.currentTarget);
   $('#pregledFotografije').dataset.serijaSinhronizovano = '0';
   $('#stanjeSerije').textContent = 'Uspešno: ' + stanje.gotovo + ' / ' + stanje.ukupno;
@@ -553,7 +552,7 @@ $('#dugmeVideo').onclick = async (e) => {
   $('#dugmeFoto').disabled = videoUkljucen;
   dugme.classList.toggle('snima', videoUkljucen);
   dugme.title = videoUkljucen ? 'Zaustavi snimanje' : 'Počni snimanje';
-  $('#oznakaDugmetaVidea').textContent = videoUkljucen ? 'Zaustavi video' : 'Snimi video';
+  dugme.setAttribute('aria-label', videoUkljucen ? 'Zaustavi snimanje' : 'Počni snimanje');
   clearInterval(brojac);
   if (videoUkljucen) {
     if (!prikazUkljucen) prikaz(true);
@@ -738,17 +737,19 @@ const izabrani = new Set();
 const velicina = (b) => (b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' KB');
 const ekstenzija = (ime) => ime.split('.').pop().toLowerCase();
 const jeVideo = (ime) => ['mov', 'mp4'].includes(ekstenzija(ime));
+const bezbedanTekst = (vrednost) => String(vrednost).replace(/[&<>"']/g, (znak) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[znak]);
 
 const podrzanZaPrebacivanje = (ime) => ['nef', 'mov', 'mp4'].includes(ekstenzija(ime));
 
 function plocica({ ime, velicinaB, slicica, naMacu, statusMaca, kljuc }) {
   const tip = ekstenzija(ime);
-  const znak = jeVideo(ime) ? '<span class="znak video">▶ VIDEO</span>' : tip === 'nef' ? '<span class="znak">NEF</span>' : '';
+  const znak = jeVideo(ime) ? '<span class="znak video">▶ VIDEO</span>' : '';
   const statusKlasa = statusMaca === 'nepotpuno' ? ' nepotpuno' : statusMaca === 'provera' ? ' provera' : '';
   const statusTekst = statusMaca === 'nepotpuno' ? '! nepotpuno' : statusMaca === 'provera' ? 'proveri kopiju' : '';
   return `<div class="plocica${naMacu ? ' proverena' : ''}${izabrani.has(kljuc) ? ' izabrana' : ''}" data-kljuc="${kljuc}" data-ime="${ime}" title="${ime} · ${velicina(velicinaB)}">
     <div class="slika"><img src="${slicica}" loading="lazy" alt="" onerror="this.replaceWith('${tip.toUpperCase()}')"></div>
     ${znak}${statusTekst ? `<span class="kvacica${statusKlasa}">${statusTekst}</span>` : ''}
+    <span class="naziv">${bezbedanTekst(ime)}</span>
   </div>`;
 }
 
@@ -886,21 +887,8 @@ $('#izaberiNovo').onclick = () => {
 $('#prebaci').onclick = () => prebaci([...izabrani]);
 $('#osveziGaleriju').onclick = ponovoPovezi;
 
-async function proveriAparat() {
-  try {
-    const { model, baterija } = await (await fetch('/status')).json();
-    prikaziStatusAparata(model, baterija);
-    return !!model;
-  } catch (e) {
-    nazivAparata = null;
-    nivoBaterije = null;
-    $('#status').textContent = 'Server nije dostupan. Ponovo pokreni aplikaciju.';
-    return false;
-  }
-}
-
-async function ponovoPovezi(e) {
-  const dugmad = [$('#osvezi'), $('#osveziGaleriju')];
+async function ponovoPovezi(e, obavesti = true) {
+  const dugmad = [$('#osveziGaleriju')];
   dugmad.forEach((dugme) => { if (dugme) dugme.disabled = true; });
   $('#status').textContent = 'Ponovo povezujem aparat…';
   try {
@@ -913,51 +901,31 @@ async function ponovoPovezi(e) {
       tab = 'mac';
       document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t.dataset.tab === 'mac'));
       await ucitajGaleriju();
+      $('#podesavanja').innerHTML = '';
       poruka('Aparat nije pronađen', true);
       return;
     }
-    await proveriBateriju(podaci.model);
     tab = 'aparat';
     document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t.dataset.tab === 'aparat'));
     prikaz(true);
     await Promise.allSettled([ucitajPodesavanja(), ucitajGaleriju()]);
-    poruka('Veza sa aparatom je obnovljena');
+    if (obavesti) poruka('Veza sa aparatom je obnovljena');
   } catch (e) {
     prikaz(false, false);
     $('#status').textContent = 'Ponovno povezivanje nije uspelo. Proveri USB i pokušaj ponovo.';
+    $('#podesavanja').innerHTML = '';
     poruka(e.message, true);
   } finally {
     dugmad.forEach((dugme) => { if (dugme) dugme.disabled = false; });
   }
 }
 
-async function proveriBateriju(model = nazivAparata) {
-  try {
-    const odg = await fetch('/status');
-    const podaci = await odg.json();
-    prikaziStatusAparata(model || podaci.model, podaci.baterija);
-  } catch (_) {
-    prikaziStatusAparata(model, null);
-  }
-}
-
-$('#osvezi').onclick = ponovoPovezi;
-
 // Pri zatvaranju stranice aparat izlazi iz živog prikaza, da ne troši bateriju.
 window.addEventListener('pagehide', () => navigator.sendBeacon('/ugasi-prikaz'));
 
 (async () => {
   prikaz(false, false);
-  if (await proveriAparat()) {
-    prikaz(true);
-    ucitajPodesavanja();
-    ucitajGaleriju();
-  } else {
-    $('#podesavanja').innerHTML = '';
-    tab = 'mac';
-    document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t.dataset.tab === 'mac'));
-    ucitajGaleriju();
-  }
+  await ponovoPovezi(null, false);
 })();
 </script>
 </body>

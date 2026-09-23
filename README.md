@@ -47,18 +47,18 @@ sistem. Homebrew nije potreban.
   pa su širi formati vodič za kadriranje i sečenje u montaži. Okvir je
   približan: po sredini, cela širina.
 - Slika odmah ide na Mac.
-- Serijsko slikanje: izaberi broj NEF fotografija i najmanji razmak u
-  milisekundama (0 za bez čekanja). Fajlovi se sinhronizuju nakon snimanja cele
-  serije, da prenos RAW-a ne usporava sledeći okidač. Serija prikazuje napredak
+- Serijsko slikanje: izaberi broj NEF fotografija i razmak u sekundama
+  (decimalne vrednosti su dozvoljene; 0 za bez čekanja). Fajlovi se sinhronizuju
+  nakon snimanja cele serije, da prenos RAW-a ne usporava sledeći okidač. Serija prikazuje napredak
   snimanja i prenosa i može da se zaustavi.
 - Aplikacija prati PTP događaje sa fizičkog dugmeta zatvarača i preuzima NEF
   ako ga Nikon pošalje preko USB-a, i kad je živi prikaz ugašen. To treba
   potvrditi probom na D3400; ponašanje može zavisiti od režima aparata i cilja
   čuvanja slike.
 - Sličica poslednje fotografije ili izabrane stavke iz galerije prikazuje se
-  ispod živog prikaza. Dugme odmah ispod kadra skroluje do nje.
-- Autofokus: dugme „Izoštri (AF)", taster F, ili klik na deo živog prikaza
-  (pomeri tačku fokusa tamo i odmah izoštri).
+  ispod živog prikaza.
+- Autofokus: taster F ili klik na deo živog prikaza (pomeri tačku fokusa tamo i
+  odmah izoštri).
   - Klik prebacuje AF zonu sa prepoznavanja lica na usku zonu, jer lica i
     praćenje objekta zanemaruju izabranu tačku.
   - Kad je AF režim živog prikaza na ručnom fokusu, aparat javi uspeh a ne
@@ -74,9 +74,10 @@ sistem. Homebrew nije potreban.
   za pregledač (MP4, ista slika, AAC zvuk) u `snimci/pregled/`. Za MP4 treba
   `ffmpeg`, bez njega se pušta MOV (radi u Safari-ju). Izabrani odnos kadra
   zapisuje se uz putanju videa u `snimci/odnosi-videa.txt`; video se ne seče.
-- Galerija sa tri kolone sličica ima svoj skrol. Desni panel drži osvežavanje
-  veze, dugmad za skrivanje panela i galerije, pa ogledalo prikaza. Središnji
-  stub se skroluje zasebno, a foto i video tasteri su zajedno.
+- Galerija sa tri kolone sličica i desni panel skroluju se odvojeno bez
+  vidljivih traka. Desni panel drži dugmad za skrivanje panela i galerije, pa
+  ogledalo prikaza. Foto i video tasteri su bez tekstualnih oznaka. Vodič kadra
+  zatamnjuje prostor van izabranog odnosa crnim trakama, bez žutih linija.
 - Galerija ima dve kartice:
   - **Na kartici aparata**: NEF fotografije i MOV/MP4 video sa SD kartice, sa veličinom i oznakom šta je
     već na Mac-u. Klik bira, dvoklik prebacuje i otvara. „Izaberi sve za
@@ -91,9 +92,8 @@ sistem. Homebrew nije potreban.
 - Živi prikaz se sam uključi kad se stranica otvori, a ugasi kad se zatvori.
   Proverena veličina je 640×424 piksela pri oko 15 kadrova u sekundi; to nije
   puna rezolucija fotografije. Najveća fotografija je 6000×4000 piksela.
-- Osvežavanje stranice ili dugme „Osveži vezu" prekida zastarelu USB vezu i
-  ponovo pokušava povezivanje. Ako aparat ne može da izlista karticu, galerija
-  prikaže fajlove sa Mac-a i nudi ponovno osvežavanje.
+- Osvežavanje stranice eksplicitno prekida i ponovo uspostavlja USB vezu. Ako
+  aparat ne može da izlista karticu, galerija prikazuje fajlove sa Mac-a.
 - Klik na živi prikaz bira tačku fokusa. Kontrole za fotografisanje i video su
   desno od prikaza; zum i probni snimak za proveru oštrine uklonjeni su iz
   interfejsa.
