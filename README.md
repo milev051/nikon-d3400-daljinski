@@ -74,9 +74,9 @@ sistem. Homebrew nije potreban.
   za pregledač (MP4, ista slika, AAC zvuk) u `snimci/pregled/`. Za MP4 treba
   `ffmpeg`, bez njega se pušta MOV (radi u Safari-ju). Izabrani odnos kadra
   zapisuje se uz putanju videa u `snimci/odnosi-videa.txt`; video se ne seče.
-- Galerija sa tri kolone sličica ima svoj skrol. Gornja traka drži osvežavanje
-  veze i kontrole za skrivanje galerije i desnog panela. Središnji stub se
-  skroluje zasebno, a foto, video i okrugli AF tasteri su zajedno.
+- Galerija sa tri kolone sličica ima svoj skrol. Desni panel drži osvežavanje
+  veze, dugmad za skrivanje panela i galerije, pa ogledalo prikaza. Središnji
+  stub se skroluje zasebno, a foto i video tasteri su zajedno.
 - Galerija ima dve kartice:
   - **Na kartici aparata**: NEF fotografije i MOV/MP4 video sa SD kartice, sa veličinom i oznakom šta je
     već na Mac-u. Klik bira, dvoklik prebacuje i otvara. „Izaberi sve za
@@ -85,8 +85,9 @@ sistem. Homebrew nije potreban.
     pravljenja duplikata. JPEG fotografije se preskaču. Fajlovi zadržavaju
     originalno ime i foldere sa kartice (DCIM/.../DSC_…).
   - **Na Mac-u**: folder `snimci/`, klik otvara sliku ili pušta video.
-  - Umanjene WebP sličice se pamte u `snimci/.slicice/`; za prikaz se koristi
-    JPEG pregled koji aparat već čuva uz fotografiju.
+  - WebP sličice se prave pri prebacivanju fotografije ili videa i pamte u
+    `snimci/.slicice/`. Galerija koristi male sličice, a pregled ispod živog
+    prikaza traži rezoluciju prilagođenu širini prikaza (do 3840 px).
 - Živi prikaz se sam uključi kad se stranica otvori, a ugasi kad se zatvori.
   Proverena veličina je 640×424 piksela pri oko 15 kadrova u sekundi; to nije
   puna rezolucija fotografije. Najveća fotografija je 6000×4000 piksela.

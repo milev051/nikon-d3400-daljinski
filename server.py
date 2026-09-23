@@ -291,7 +291,13 @@ class Aparat:
                 poslednja_putanja = odrediste.relative_to(SNIMCI).as_posix()
             return poslednja_putanja
 
-        return self.izvrsi(radnja)
+        rezultat = self.izvrsi(radnja)
+        if preuzmi and rezultat:
+            try:
+                lokalna_slicica(SNIMCI / rezultat)
+            except OSError:
+                pass
+        return rezultat
 
     def pokreni_seriju(self, broj, interval_ms):
         broj = max(1, min(500, int(broj)))
@@ -607,6 +613,10 @@ class Aparat:
             if privremena_putanja.exists():
                 privremena_putanja.unlink()
 
+        try:
+            lokalna_slicica(cilj)
+        except OSError:
+            pass
         pregled = napravi_pregled(cilj) if cilj.suffix.lower() == ".mov" else None
         return {"ime": ime, "putanja": cilj.relative_to(SNIMCI).as_posix(), "pregled": pregled, "stanje": stanje}
 
@@ -685,7 +695,7 @@ def lokalna_slicica(fajl, sirina=480):
         ffmpeg = nadji_ffmpeg()
         if ffmpeg:
             rezultat = subprocess.run(
-                [ffmpeg, "-y", "-v", "error", "-i", str(fajl), "-frames:v", "1", "-vf", f"scale={sirina}:-2", "-c:v", "libwebp", "-quality", "72", str(kes)],
+                [ffmpeg, "-y", "-v", "error", "-i", str(fajl), "-frames:v", "1", "-vf", f"scale='min({sirina},iw)':-2", "-c:v", "libwebp", "-quality", "72", str(kes)],
                 capture_output=True,
             )
             if rezultat.returncode == 0 and kes.is_file():
@@ -708,7 +718,7 @@ def konvertuj_u_webp(izvor, odrediste, sirina):
     if not ffmpeg:
         return None
     rezultat = subprocess.run(
-        [ffmpeg, "-y", "-v", "error", "-i", str(izvor), "-frames:v", "1", "-vf", f"scale={sirina}:-2", "-c:v", "libwebp", "-quality", "72", str(odrediste)],
+        [ffmpeg, "-y", "-v", "error", "-i", str(izvor), "-frames:v", "1", "-vf", f"scale='min({sirina},iw)':-2", "-c:v", "libwebp", "-quality", "72", str(odrediste)],
         capture_output=True,
     )
     return odrediste if rezultat.returncode == 0 and odrediste.is_file() else None
@@ -814,7 +824,7 @@ class Zahtev(BaseHTTPRequestHandler):
             if not fajl.is_relative_to(SNIMCI.resolve()):
                 return self._json({"greska": "Neispravna putanja"}, 400)
             try:
-                sirina = max(480, min(1920, int(parse_qs(url.query).get("sirina", ["480"])[0])))
+                sirina = max(480, min(3840, int(parse_qs(url.query).get("sirina", ["480"])[0])))
             except ValueError:
                 sirina = 480
             kes = lokalna_slicica(fajl, sirina) if fajl.is_file() else None
@@ -825,7 +835,7 @@ class Zahtev(BaseHTTPRequestHandler):
         if url.path == "/kartica/slicica":
             try:
                 upit = parse_qs(url.query)
-                sirina = max(480, min(1920, int(upit.get("sirina", ["480"])[0])))
+                sirina = max(480, min(3840, int(upit.get("sirina", ["480"])[0])))
                 kes = aparat.slicica_sa_kartice(upit["putanja"][0], sirina)
                 return self._fajl(kes, "image/webp" if kes.suffix == ".webp" else "image/jpeg")
             except (gp.GPhoto2Error, KeyError, ValueError, RuntimeError) as greska:

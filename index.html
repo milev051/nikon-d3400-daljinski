@@ -9,21 +9,19 @@
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.4 -apple-system, system-ui, sans-serif; background: var(--poz); color: var(--tekst); height: 100vh; overflow: hidden; }
   #status { color: var(--sivo); font-variant-numeric: tabular-nums; }
-  .radni { display: grid; grid-template-columns: 310px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 12px; height: 100vh; padding: 12px; min-height: 0; }
+  .radni { display: grid; grid-template-columns: 310px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; height: 100vh; padding: 12px; min-height: 0; }
   .radni.galerija-sakrivena { grid-template-columns: minmax(0, 1fr); }
   .radni.galerija-sakrivena > .galerija { display: none; }
-  .gornja-traka { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; min-width: 0; }
-  main { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; padding: 0; align-items: stretch; min-width: 0; min-height: 0; }
+  main { grid-column: 2; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; padding: 0; align-items: stretch; min-width: 0; min-height: 0; }
   .radni.galerija-sakrivena main { grid-column: 1; }
   main.panel-sakriven { grid-template-columns: minmax(0, 1fr); }
   main.panel-sakriven > aside { display: none; }
-  .galerija { grid-column: 1; grid-row: 2; }
+  .galerija { grid-column: 1; grid-row: 1; }
   .kamera { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 8px; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 4px 24px 2px; }
   @media (max-width: 1100px) { .radni { grid-template-columns: 270px minmax(0, 1fr); } main { grid-template-columns: minmax(0, 1fr) 230px; } }
   @media (max-width: 900px) {
     body { height: auto; min-height: 100vh; overflow: auto; }
     .radni { display: flex; flex-direction: column; height: auto; min-height: 100vh; }
-    .gornja-traka { flex-wrap: wrap; }
     .galerija { max-height: 42vh; min-height: 220px; }
     main { display: flex; flex-direction: column; }
     aside { overflow: visible !important; }
@@ -47,7 +45,7 @@
   #bioskop { position: fixed; inset: 0; background: #000e; display: none; place-items: center; z-index: 10; padding: 16px; }
   #bioskop video { max-width: 100%; max-height: 90vh; }
   #bioskop button { position: fixed; top: 12px; right: 16px; }
-  #pregledFotografije { width: min(100%, 1200px); margin: 0 auto; scroll-margin-top: 12px; }
+  #pregledFotografije { width: min(100%, calc((100vh - 150px) * 1.5)); margin: 0 auto; scroll-margin-top: 12px; }
   #pregledFotografije[hidden] { display: none; }
   #slikaPregleda { display: block; width: 100%; max-height: min(70vh, 760px); object-fit: contain; }
   #serijaKontrole { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 9px; border: 1px solid #333; border-radius: 7px; }
@@ -59,6 +57,12 @@
   .prikaz span { color: var(--sivo); }
   .prikaz button { font-size: 16px; padding: 14px 22px; }
   .kontrole { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  #komandeKamera { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  #komandeKamera button { width: 100%; min-width: 0; }
+  #komandeKamera #osvezi, #komandeKamera #dugmeFlip { grid-column: 1 / -1; }
+  #komandeKamera.plutajuce { position: fixed; z-index: 21; top: 12px; right: 12px; width: min(270px, calc(100vw - 24px)); padding: 10px; background: #1c1c1cf5; border: 1px solid #555; border-radius: 8px; box-shadow: 0 4px 20px #0009; }
+  #redPrikaza { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; gap: 8px; }
+  #redPrikaza button { width: 100%; min-width: 0; min-height: 64px; display: flex; align-items: center; justify-content: center; }
   #okvirVidea { position: absolute; z-index: 1; border-top: 2px solid var(--akcent); border-bottom: 2px solid var(--akcent); pointer-events: none; display: none; }
   #okvirVidea span { position: absolute; top: 6px; left: 8px; font-size: 12px; background: #000b; padding: 2px 6px; border-radius: 4px; }
   .glavni-red { align-items: center; }
@@ -116,12 +120,6 @@
 </head>
 <body>
 <div class="radni">
-  <div class="gornja-traka">
-    <button id="osvezi" title="Ponovo poveži USB vezu">↻ Osveži vezu</button>
-    <button id="dugmeGalerija" aria-expanded="true">◀ Sakrij galeriju</button>
-    <button id="dugmePanel" aria-expanded="true">⤢ Sakrij desni panel</button>
-    <button id="dugmeFlip" aria-pressed="false">↔ Ogledalo prikaza: isključeno</button>
-  </div>
   <section class="galerija">
     <h2>Materijal</h2>
     <div class="traka">
@@ -144,12 +142,20 @@
   </div>
 
   <aside>
+    <div id="komandeKamera">
+    <button id="osvezi" title="Ponovo poveži USB vezu">↻ Osveži vezu</button>
+    <button id="dugmeGalerija" aria-expanded="true">◀ Sakrij galeriju</button>
+    <button id="dugmePanel" aria-expanded="true">⤢ Sakrij desni panel</button>
+    <button id="dugmeFlip" aria-pressed="false">↔ Ogledalo prikaza: isključeno</button>
+    </div>
     <section class="status-aparata">
       <span id="status">Tražim aparat…</span>
     </section>
     <div class="kontrole glavni-red" id="kontrole">
-      <button id="dugmePrikaz">Uključi živi prikaz</button>
-      <button id="dugmePusti" title="Prekida vezu, da dugmad na aparatu rade">⏏ Pusti</button>
+      <div id="redPrikaza">
+        <button id="dugmePrikaz">Uključi živi prikaz</button>
+        <button id="dugmePusti" title="Prekida vezu, da dugmad na aparatu rade">⏏ Pusti</button>
+      </div>
       <div id="akcijeSnimanja">
         <div class="akcija-snimanja">
           <button id="dugmeFoto" class="okidac" title="Slikaj" aria-label="Slikaj"></button>
@@ -200,6 +206,8 @@ let intervalProvereSerije = null;
 let poslednjiSpoljniBroj = 0;
 let nazivAparata = null;
 let nivoBaterije = null;
+let pregledIzvor = null;
+let sirinaPregleda = 0;
 
 function prikaziStatusAparata(model, baterija) {
   nazivAparata = model || null;
@@ -209,11 +217,27 @@ function prikaziStatusAparata(model, baterija) {
     : 'Aparat nije pronađen. Proveri USB i klikni „Osveži vezu".';
 }
 
-function prikaziPregledFotografije(ime, slicica = null) {
+function sirinaPregledaUklopljena() {
+  const sirina = $('#prikaz').getBoundingClientRect().width * (window.devicePixelRatio || 1);
+  return Math.max(480, Math.min(3840, Math.ceil(sirina / 256) * 256));
+}
+
+function prikaziPregledFotografije(ime, izvor = null) {
   const putanja = ime.split('/').map(encodeURIComponent).join('/');
-  $('#slikaPregleda').src = slicica || '/slicica/' + putanja + '?sirina=1920&t=' + Date.now();
+  pregledIzvor = izvor || '/slicica/' + putanja;
+  osveziRezolucijuPregleda(true);
   $('#pregledFotografije').hidden = false;
 }
+
+function osveziRezolucijuPregleda(prinudno = false) {
+  if (!pregledIzvor) return;
+  const sirina = sirinaPregledaUklopljena();
+  if (!prinudno && sirina === sirinaPregleda) return;
+  sirinaPregleda = sirina;
+  $('#slikaPregleda').src = pregledIzvor + (pregledIzvor.includes('?') ? '&' : '?') + 'sirina=' + sirina;
+}
+
+window.addEventListener('resize', () => osveziRezolucijuPregleda());
 
 async function proveriFizickiOkidac() {
   try {
@@ -257,6 +281,7 @@ $('#dugmeFlip').onclick = () => postaviFlipPrikaza(!flipPrikaza);
 function postaviPanelSakriven(sakriven) {
   const glavni = $('main');
   const dock = $('#akcijeSnimanja');
+  const komande = $('#komandeKamera');
   const dugme = $('#dugmePanel');
   glavni.classList.toggle('panel-sakriven', sakriven);
   dugme.textContent = sakriven ? '⚙ Prikaži desni panel' : '⤢ Sakrij desni panel';
@@ -264,9 +289,13 @@ function postaviPanelSakriven(sakriven) {
   if (sakriven) {
     document.body.append(dock);
     dock.classList.add('plutajuce');
+    document.body.append(komande);
+    komande.classList.add('plutajuce');
   } else {
     dock.classList.remove('plutajuce');
     $('#kontrole').insertBefore(dock, $('#format'));
+    komande.classList.remove('plutajuce');
+    $('aside').prepend(komande);
   }
   localStorage.setItem('sakrijDesniPanel', sakriven ? 'da' : 'ne');
 }
@@ -812,10 +841,10 @@ $('#mreza').onclick = (e) => {
   if (!p) return;
   const putanja = p.dataset.kljuc;
   const putanjaUrl = putanja.split('/').map(encodeURIComponent).join('/');
-  const slicica = tab === 'aparat'
-    ? '/kartica/slicica?putanja=' + encodeURIComponent(putanja) + '&sirina=1920'
-    : '/slicica/' + putanjaUrl + '?sirina=1920';
-  prikaziPregledFotografije(p.dataset.ime, slicica);
+  const izvorPregleda = tab === 'aparat'
+    ? '/kartica/slicica?putanja=' + encodeURIComponent(putanja)
+    : '/slicica/' + putanjaUrl;
+  prikaziPregledFotografije(p.dataset.ime, izvorPregleda);
   if (e.ctrlKey || e.metaKey) {
     if (izabrani.has(putanja)) izabrani.delete(putanja);
     else izabrani.add(putanja);
