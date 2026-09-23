@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="sr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nikon D3400 daljinski</title>
+<style>
+  :root { --poz: #111; --pov: #1c1c1c; --tekst: #eee; --sivo: #888; --akcent: #f5c400; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.4 -apple-system, system-ui, sans-serif; background: var(--poz); color: var(--tekst); }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #2a2a2a; }
+  header b { color: var(--akcent); }
+  #status { color: var(--sivo); }
+  main { display: grid; grid-template-columns: 1fr 300px; gap: 16px; padding: 16px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  /* Ceo kadar uvek staje u prozor: širina se smanjuje kad bi visina prešla ekran. */
+  .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 200px) * 1.5)); min-width: 320px; margin: 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
+  .prikaz { position: relative; }
+  .prikaz img { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; }
+  #oznaka { position: absolute; width: 48px; height: 48px; margin: -24px 0 0 -24px; border: 2px solid var(--akcent); border-radius: 4px; pointer-events: none; display: none; }
+  #zumNivo { color: var(--sivo); align-self: center; min-width: 60px; }
+  #lupa { position: fixed; inset: 0; background: #000; overflow: auto; display: none; cursor: zoom-out; z-index: 10; }
+  #lupa img { display: block; max-width: none; }
+  #bioskop { position: fixed; inset: 0; background: #000e; display: none; place-items: center; z-index: 10; padding: 16px; }
+  #bioskop video { max-width: 100%; max-height: 90vh; }
+  #bioskop button { position: fixed; top: 12px; right: 16px; }
+  #vreme { color: #f66; align-self: center; font-variant-numeric: tabular-nums; }
+  #lupa p { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: #000c; padding: 6px 12px; border-radius: 6px; margin: 0; }
+  .prikaz span { color: var(--sivo); }
+  .prikaz button { font-size: 16px; padding: 14px 22px; }
+  .kontrole { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  #okvirVidea { position: absolute; box-shadow: 0 0 0 9999px #000; pointer-events: none; display: none; }
+  #okvirVidea span { position: absolute; top: 6px; left: 8px; font-size: 12px; background: #000b; padding: 2px 6px; border-radius: 4px; }
+  .glavni-red { align-items: center; justify-content: center; gap: 8px; }
+  .glavni-red .razmak { width: 1px; height: 32px; background: #333; margin: 0 4px; }
+  .glavni-red select { width: auto; padding: 9px 6px; }
+  .rezim { display: flex; }
+  .rezim button { border-radius: 0; }
+  .rezim button:first-child { border-radius: 6px 0 0 6px; }
+  .rezim button:last-child { border-radius: 0 6px 6px 0; }
+  .rezim button.izabran { background: var(--tekst); color: #000; border-color: var(--tekst); }
+  .okidac { width: 64px; height: 64px; border-radius: 50%; padding: 0; border: 4px solid var(--tekst); background: transparent; display: grid; place-items: center; }
+  .okidac::after { content: ''; width: 48px; height: 48px; border-radius: 50%; background: var(--tekst); transition: all .15s; }
+  .okidac.video::after { background: #e33; }
+  .okidac.snima::after { width: 24px; height: 24px; border-radius: 4px; }
+  .okidac:hover { border-color: var(--akcent); }
+  button { background: var(--pov); color: var(--tekst); border: 1px solid #333; border-radius: 6px; padding: 10px 14px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--akcent); }
+  button:disabled { opacity: .4; cursor: wait; }
+  button.glavno { background: var(--akcent); color: #000; border-color: var(--akcent); font-weight: 600; }
+  button.aktivno { border-color: #e33; color: #f66; }
+  aside section { background: var(--pov); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--sivo); margin: 0 0 10px; }
+  label { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 6px; font-size: 14px; }
+  select { width: 100%; min-width: 0; text-overflow: ellipsis; background: #111; color: var(--tekst); border: 1px solid #333; border-radius: 4px; padding: 5px; font: inherit; }
+  .galerija { padding: 0 16px 32px; }
+  .galerija .traka { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .galerija .traka .tab.izabran { border-color: var(--akcent); color: var(--akcent); }
+  .galerija .traka .info { color: var(--sivo); font-size: 13px; margin-right: auto; }
+  .galerija .traka label { display: flex; grid-template-columns: none; margin: 0; gap: 6px; color: var(--sivo); font-size: 13px; }
+  #mreza { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .plocica { position: relative; background: var(--pov); border: 2px solid transparent; border-radius: 6px; overflow: hidden; cursor: pointer; user-select: none; }
+  .plocica:hover { border-color: #444; }
+  .plocica.izabrana { border-color: var(--akcent); }
+  .plocica .slika { aspect-ratio: 3 / 2; background: #0a0a0a; display: grid; place-items: center; color: var(--sivo); font-size: 13px; }
+  .plocica .slika img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .plocica .opis { padding: 6px 8px; font-size: 12px; display: flex; justify-content: space-between; gap: 6px; color: var(--sivo); }
+  .plocica .opis b { color: var(--tekst); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plocica .znak { position: absolute; top: 6px; left: 6px; background: #000b; border-radius: 4px; padding: 2px 6px; font-size: 11px; }
+  .plocica .znak.video { background: #b22; }
+  .plocica .kvacica { position: absolute; top: 6px; right: 6px; background: #1a7f37; border-radius: 4px; padding: 2px 6px; font-size: 11px; }
+  .prazno { color: var(--sivo); padding: 24px 0; }
+  #poruka { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #333; padding: 8px 14px; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #poruka.vidljivo { opacity: 1; }
+  #poruka.greska { background: #822; }
+</style>
+</head>
+<body>
+<header>
+  <div><b>Nikon D3400</b> daljinski</div>
+  <div id="status">Tražim aparat…</div>
+</header>
+
+<main>
+  <div>
+    <div class="prikaz" id="prikaz"></div>
+    <div class="kontrole glavni-red">
+      <button id="dugmePrikaz">Uključi živi prikaz</button>
+      <button id="dugmePusti" title="Prekida vezu, da dugmad na aparatu rade">⏏ Pusti</button>
+      <span class="razmak"></span>
+      <div class="rezim">
+        <button data-rezim="foto" class="izabran">Foto</button>
+        <button data-rezim="video">Video</button>
+      </div>
+      <select id="format" title="Format kadra za video" hidden>
+        <option value="1.7778">16:9 (FHD)</option>
+        <option value="1.85">1.85:1 film</option>
+        <option value="2">2:1</option>
+        <option value="2.39">2.39:1 široki film</option>
+      </select>
+      <button id="okidac" class="okidac" title="Slikaj (razmaknica)"></button>
+      <span id="vreme"></span>
+      <button id="dugmePogledaj" class="glavno" hidden>Pogledaj na Mac-u</button>
+      <span class="razmak"></span>
+      <button class="glavno" id="dugmeAf">◎ Izoštri</button>
+      <button data-zum="-1">Zum −</button>
+      <span id="zumNivo">ceo kadar</span>
+      <button data-zum="1">Zum +</button>
+      <button id="dugmeProvera">Proveri oštrinu</button>
+    </div>
+    <p style="color:var(--sivo);font-size:13px;margin:8px 0 0">Klik na živi prikaz izoštrava na tom delu kadra, i tu se zumira. Taster F izoštrava ponovo, razmaknica okida.</p>
+  </div>
+
+  <aside>
+    <section>
+      <h2>Podešavanja</h2>
+      <div id="podesavanja"><span style="color:var(--sivo)">Učitavam…</span></div>
+      <button id="osvezi" style="margin-top:6px">Osveži</button>
+    </section>
+  </aside>
+</main>
+
+<section class="galerija">
+  <div class="traka">
+    <button class="tab izabran" data-tab="aparat">Na kartici aparata</button>
+    <button class="tab" data-tab="mac">Na Mac-u</button>
+    <span class="info" id="galerijaInfo"></span>
+    <label id="samoSlike"><input type="checkbox" checked> bez NEF duplikata</label>
+    <button id="izaberiNovo">Izaberi sve što nije na Mac-u</button>
+    <button id="prebaci" class="glavno" hidden>Prebaci na Mac</button>
+    <button id="osveziGaleriju">Osveži</button>
+  </div>
+  <div id="mreza"></div>
+</section>
+
+<div id="poruka"></div>
+<div id="bioskop"><button>Zatvori</button><video controls autoplay playsinline></video></div>
+<div id="lupa"><p>Provera u punoj rezoluciji. Klik zatvara.</p><img alt="Provera oštrine"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let prikazUkljucen = false;
+let videoUkljucen = false;
+
+function poruka(tekst, greska = false) {
+  const el = $('#poruka');
+  el.textContent = tekst;
+  el.className = 'vidljivo' + (greska ? ' greska' : '');
+  clearTimeout(el.t);
+  el.t = setTimeout(() => (el.className = ''), 3000);
+}
+
+async function posalji(putanja, dugme) {
+  if (dugme) dugme.disabled = true;
+  try {
+    const odg = await fetch(putanja, { method: 'POST' });
+    const podaci = await odg.json();
+    if (!odg.ok) throw new Error(podaci.greska);
+    return podaci;
+  } catch (e) {
+    poruka(e.message, true);
+    throw e;
+  } finally {
+    if (dugme) dugme.disabled = false;
+  }
+}
+
+let tacka = { x: 0.5, y: 0.5 };
+let rezim = 'foto';
+let zumNivo = 0;
+
+function prikaz(ukljuci, obavestiServer = true) {
+  prikazUkljucen = ukljuci;
+  const okvir = $('#prikaz');
+  okvir.innerHTML = ukljuci
+    ? `<img src="/prikaz?t=${Date.now()}" alt="Živi prikaz"><div id="okvirVidea"><span></span></div><div id="oznaka"></div>`
+    : '<div style="text-align:center"><button class="glavno">Uključi živi prikaz</button><br><span>Dok je uključen, baterija se brže prazni</span></div>';
+  if (ukljuci) okvir.querySelector('img').onclick = izaberiTacku;
+  else okvir.querySelector('button').onclick = () => prikaz(true);
+  $('#dugmePrikaz').textContent = ukljuci ? 'Ugasi živi prikaz' : 'Uključi živi prikaz';
+  $('#dugmePrikaz').classList.toggle('aktivno', ukljuci);
+  if (!ukljuci && obavestiServer) posalji('/ugasi-prikaz').catch(() => {});
+}
+
+// Deo okvira koji zauzima sama slika, bez crnih traka koje pravi object-fit: contain.
+function povrsinaSlike(img) {
+  const okvir = img.getBoundingClientRect();
+  const sirinaIzvora = img.naturalWidth || 3;
+  const visinaIzvora = img.naturalHeight || 2;
+  const razmera = Math.min(okvir.width / sirinaIzvora, okvir.height / visinaIzvora);
+  const sirina = sirinaIzvora * razmera;
+  const visina = visinaIzvora * razmera;
+  return { levo: (okvir.width - sirina) / 2, gore: (okvir.height - visina) / 2, sirina, visina };
+}
+
+// U video režimu se vidi samo deo koji ide u video, ostatak se krije.
+// Aparat uvek snima 16:9 (cela širina, po sredini, približno do piksela). Širi filmski formati su
+// isečak unutar tog videa, pa služe kao vodič za kadriranje i kasnije sečenje u montaži.
+function azurirajOkvirVidea() {
+  const okvir = $('#okvirVidea');
+  const img = $('#prikaz img');
+  if (!okvir || !img) return;
+  if (rezim !== 'video' || zumNivo !== 0) {
+    okvir.style.display = 'none';
+    return;
+  }
+  const p = povrsinaSlike(img);
+  const format = $('#format');
+  const visina = p.sirina / Number(format.value);
+  okvir.querySelector('span').textContent = format.value === '1.7778' ? 'video FHD 16:9' : format.selectedOptions[0].text + ', isečak iz FHD';
+  Object.assign(okvir.style, {
+    display: 'block',
+    left: p.levo + 'px',
+    width: p.sirina + 'px',
+    top: p.gore + (p.visina - visina) / 2 + 'px',
+    height: visina + 'px',
+  });
+}
+setInterval(azurirajOkvirVidea, 500);
+window.addEventListener('resize', azurirajOkvirVidea);
+
+// Pretvara klik u deo kadra od 0 do 1, uz crne trake koje pravi object-fit: contain.
+function izaberiTacku(e) {
+  const img = e.target;
+  const okvir = img.getBoundingClientRect();
+  const { levo, gore, sirina, visina } = povrsinaSlike(img);
+  const x = (e.clientX - okvir.left - levo) / sirina;
+  const y = (e.clientY - okvir.top - gore) / visina;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  tacka = { x, y };
+  const oznaka = $('#oznaka');
+  oznaka.style.left = levo + x * sirina + 'px';
+  oznaka.style.top = gore + y * visina + 'px';
+  oznaka.style.display = 'block';
+  posalji(`/tacka?x=${x.toFixed(4)}&y=${y.toFixed(4)}`)
+    .then((podaci) => {
+      if (podaci.zona_promenjena) ucitajPodesavanja();
+      return izostri();
+    })
+    .catch(() => {});
+}
+
+async function izostri() {
+  const dugme = $('#dugmeAf');
+  dugme.textContent = '◎ Oštrim…';
+  try {
+    const podaci = await posalji('/autofokus', dugme);
+    if (podaci.rezim_promenjen) {
+      ucitajPodesavanja();
+      poruka('AF režim je bio na ručnom fokusu, vraćen na AF-S. Izoštreno');
+    } else {
+      poruka('Izoštreno');
+    }
+  } finally {
+    dugme.textContent = '◎ Izoštri (AF)';
+  }
+}
+
+$('#dugmeAf').onclick = () => izostri().catch(() => {});
+document.addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || ['INPUT', 'SELECT', 'BUTTON'].includes(e.target.tagName)) return;
+  if (e.key.toLowerCase() === 'f') izostri().catch(() => {});
+  if (e.key === ' ') {
+    e.preventDefault();
+    $('#okidac').click();
+  }
+});
+
+document.querySelectorAll('[data-zum]').forEach((b) => {
+  b.onclick = async () => {
+    if (!prikazUkljucen) return poruka('Zum radi samo uz živi prikaz', true);
+    const podaci = await posalji('/zum?nivo=' + (zumNivo + Number(b.dataset.zum)), b);
+    zumNivo = podaci.nivo;
+    azurirajOkvirVidea();
+    $('#zumNivo').textContent = zumNivo === 0 ? 'ceo kadar' : 'zum ' + podaci.vrednost;
+  };
+});
+
+$('#dugmeProvera').onclick = async (e) => {
+  const { snimak } = await posalji('/provera', e.target);
+  if (!/\.jpe?g$/i.test(snimak)) {
+    return poruka('Aparat je snimio RAW. Za proveru podesi kvalitet slike na JPEG ili RAW + JPEG', true);
+  }
+  const lupa = $('#lupa');
+  const img = lupa.querySelector('img');
+  img.onload = () => {
+    lupa.scrollLeft = tacka.x * img.naturalWidth - lupa.clientWidth / 2;
+    lupa.scrollTop = tacka.y * img.naturalHeight - lupa.clientHeight / 2;
+  };
+  img.src = '/snimci/' + snimak;
+  lupa.style.display = 'block';
+};
+
+$('#lupa').onclick = () => ($('#lupa').style.display = 'none');
+
+$('#dugmePrikaz').onclick = () => prikaz(!prikazUkljucen);
+
+$('#dugmePusti').onclick = async (e) => {
+  prikaz(false, false);
+  await posalji('/pusti', e.target);
+  $('#status').textContent = 'Aparat je slobodan, dugmad na aparatu rade. Bilo koja radnja ovde ga ponovo preuzima.';
+  poruka('Aparat je pušten');
+};
+
+$('#format').onchange = azurirajOkvirVidea;
+
+let poslednjiVideo = null;
+let pocetakVidea = 0;
+let brojac = null;
+
+function postaviRezim(novi) {
+  if (videoUkljucen) return poruka('Prvo zaustavi snimanje', true);
+  rezim = novi;
+  document.querySelectorAll('[data-rezim]').forEach((b) => b.classList.toggle('izabran', b.dataset.rezim === rezim));
+  const okidac = $('#okidac');
+  okidac.classList.toggle('video', rezim === 'video');
+  $('#format').hidden = rezim !== 'video';
+  okidac.title = rezim === 'video' ? 'Počni snimanje (razmaknica)' : 'Slikaj (razmaknica)';
+  azurirajOkvirVidea();
+}
+
+document.querySelectorAll('[data-rezim]').forEach((b) => (b.onclick = () => postaviRezim(b.dataset.rezim)));
+
+$('#okidac').onclick = async (e) => {
+  const okidac = e.currentTarget;
+  if (rezim === 'foto') {
+    const podaci = await posalji('/okini', okidac);
+    poruka('Sačuvano: ' + podaci.snimak);
+    return ucitajGaleriju();
+  }
+  const podaci = await posalji('/video?ukljuci=' + (videoUkljucen ? 0 : 1), okidac);
+  videoUkljucen = !videoUkljucen;
+  okidac.classList.toggle('snima', videoUkljucen);
+  okidac.title = videoUkljucen ? 'Zaustavi snimanje (razmaknica)' : 'Počni snimanje (razmaknica)';
+  clearInterval(brojac);
+  if (videoUkljucen) {
+    if (!prikazUkljucen) prikaz(true);
+    pocetakVidea = Date.now();
+    $('#dugmePogledaj').hidden = true;
+    brojac = setInterval(() => {
+      const s = Math.floor((Date.now() - pocetakVidea) / 1000);
+      $('#vreme').textContent = `● ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    }, 250);
+  } else {
+    $('#vreme').textContent = '';
+    poslednjiVideo = podaci.na_kartici;
+    if (poslednjiVideo) {
+      poruka('Video je na kartici: ' + poslednjiVideo.split('/').pop());
+      $('#dugmePogledaj').hidden = false;
+    } else {
+      poruka('Snimanje je zaustavljeno, ali aparat nije javio novi fajl', true);
+    }
+  }
+};
+
+$('#dugmePogledaj').onclick = async (e) => {
+  e.target.textContent = 'Prebacujem…';
+  try {
+    const podaci = await posalji('/preuzmi?putanja=' + encodeURIComponent(poslednjiVideo), e.target);
+    pustiVideo(podaci.pregled || podaci.ime);
+    ucitajGaleriju();
+  } finally {
+    e.target.textContent = 'Pogledaj na Mac-u';
+  }
+};
+
+function pustiVideo(ime) {
+  const bioskop = $('#bioskop');
+  bioskop.querySelector('video').src = '/snimci/' + ime;
+  bioskop.style.display = 'grid';
+}
+
+$('#bioskop button').onclick = () => {
+  const video = $('#bioskop video');
+  video.pause();
+  video.removeAttribute('src');
+  $('#bioskop').style.display = 'none';
+};
+
+// Nazivi sa aparata su na engleskom. Prevodi se samo tekst, vrednost koja se šalje ostaje ista.
+const NAZIVI = {
+  expprogram: 'Režim (točkić)',
+  iso: 'ISO',
+  shutterspeed: 'Zatvarač',
+  'f-number': 'Blenda',
+  exposurecompensation: 'Korekcija ekspozicije',
+  whitebalance: 'Balans bele',
+  focusmode: 'Fokus (prekidač)',
+  liveviewafmode: 'AF zona',
+  liveviewaffocus: 'AF režim',
+  imagequality: 'Kvalitet slike',
+  capturetarget: 'Gde ide fotografija',
+};
+const VREDNOSTI = {
+  'Face-priority AF': 'Prepoznavanje lica',
+  'Wide-area AF': 'Široka zona',
+  'Normal-area AF': 'Uska zona (precizno)',
+  'Subject-tracking AF': 'Praćenje objekta',
+  'Single-servo AF': 'AF-S, jednom',
+  'Full-time-servo AF': 'AF-F, stalno',
+  'Manual Focus (fixed)': 'Ručni fokus',
+  'Manual Focus (selection)': 'Ručni fokus (izbor tačke)',
+  'Internal RAM': 'Samo na Mac',
+  'Memory card': 'Kartica i Mac',
+  Automatic: 'Automatski',
+  Daylight: 'Dnevno svetlo',
+  Fluorescent: 'Fluorescentno',
+  Tungsten: 'Sijalica',
+  Flash: 'Blic',
+  Cloudy: 'Oblačno',
+  Shade: 'Senka',
+  Preset: 'Ručno izmeren',
+};
+
+// Aparat šalje zatvarač u sekundama (0.0333s), a prikazuje se kao na aparatu (1/30).
+const IMENIOCI = [4000, 3200, 2500, 2000, 1600, 1250, 1000, 800, 640, 500, 400, 320, 250, 200, 160, 125, 100, 80,
+  60, 50, 40, 30, 25, 20, 15, 13, 10, 8, 6, 5, 4, 3, 2.5, 2, 1.6, 1.3];
+
+function zatvarac(vrednost) {
+  const sekunde = parseFloat(vrednost);
+  if (Number.isNaN(sekunde)) return vrednost;
+  if (sekunde >= 1) return `${Math.round(sekunde * 10) / 10}″`;
+  const imenilac = IMENIOCI.reduce((a, b) => (Math.abs(Math.log(b * sekunde)) < Math.abs(Math.log(a * sekunde)) ? b : a));
+  return `1/${imenilac}`;
+}
+
+function prikaziVrednost(ime, vrednost) {
+  if (ime === 'shutterspeed') return zatvarac(vrednost);
+  if (ime === 'exposurecompensation') {
+    const ev = Math.round(parseFloat(vrednost) * 10) / 10;
+    return (ev > 0 ? '+' : '') + ev + ' EV';
+  }
+  return VREDNOSTI[vrednost] || vrednost;
+}
+
+async function ucitajPodesavanja() {
+  const el = $('#podesavanja');
+  try {
+    const odg = await fetch('/podesavanja');
+    const podaci = await odg.json();
+    if (!odg.ok) throw new Error(podaci.greska);
+    el.innerHTML = '';
+    for (const p of podaci.podesavanja) {
+      const red = document.createElement('label');
+      red.innerHTML = `<span>${NAZIVI[p.ime] || p.naziv}</span>`;
+      const izbor = document.createElement('select');
+      izbor.disabled = p.samo_citanje;
+      for (const v of p.izbor) izbor.add(new Option(prikaziVrednost(p.ime, v), v, false, v === p.vrednost));
+      izbor.onchange = async () => {
+        if (p.ime === 'f-number' && prikazUkljucen) poruka('Menjam blendu, živi prikaz se na trenutak gasi…');
+        await posalji(`/postavi?ime=${encodeURIComponent(p.ime)}&vrednost=${encodeURIComponent(izbor.value)}`);
+        poruka(`${NAZIVI[p.ime] || p.naziv}: ${prikaziVrednost(p.ime, izbor.value)}`);
+      };
+      red.append(izbor);
+      el.append(red);
+    }
+  } catch (e) {
+    el.innerHTML = `<span style="color:#f66">${e.message}</span>`;
+  }
+}
+
+// Galerija: kartica aparata ili folder snimci/ na Mac-u.
+let tab = 'aparat';
+let fajloviKartice = [];
+const izabrani = new Set();
+
+const velicina = (b) => (b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' KB');
+const ekstenzija = (ime) => ime.split('.').pop().toLowerCase();
+const jeVideo = (ime) => ['mov', 'mp4'].includes(ekstenzija(ime));
+
+// Uz NEF+JPEG aparat pravi dva fajla istog imena, pa se NEF krije ako postoji JPEG.
+function bezDuplikata(fajlovi) {
+  if (!$('#samoSlike input').checked) return fajlovi;
+  const jpeg = new Set(fajlovi.filter((f) => /jpe?g/.test(ekstenzija(f.ime))).map((f) => f.ime.replace(/\.[^.]+$/, '')));
+  return fajlovi.filter((f) => !(ekstenzija(f.ime) === 'nef' && jpeg.has(f.ime.replace(/\.[^.]+$/, ''))));
+}
+
+function plocica({ ime, velicinaB, slicica, naMacu, kljuc }) {
+  const tip = ekstenzija(ime);
+  const znak = jeVideo(ime) ? '<span class="znak video">▶ VIDEO</span>' : tip === 'nef' ? '<span class="znak">NEF</span>' : '';
+  return `<div class="plocica${izabrani.has(kljuc) ? ' izabrana' : ''}" data-kljuc="${kljuc}" data-ime="${ime}">
+    <div class="slika"><img src="${slicica}" loading="lazy" alt="" onerror="this.replaceWith('${tip.toUpperCase()}')"></div>
+    ${znak}${naMacu ? '<span class="kvacica">✓ na Mac-u</span>' : ''}
+    <div class="opis"><b>${ime}</b><span>${velicina(velicinaB)}</span></div>
+  </div>`;
+}
+
+function azurirajDugmePrebaci() {
+  const dugme = $('#prebaci');
+  dugme.hidden = tab !== 'aparat' || izabrani.size === 0;
+  dugme.textContent = `Prebaci na Mac (${izabrani.size})`;
+}
+
+async function ucitajGaleriju() {
+  const mreza = $('#mreza');
+  $('#izaberiNovo').hidden = tab !== 'aparat';
+  if (tab === 'aparat') {
+    $('#galerijaInfo').textContent = 'Čitam karticu…';
+    try {
+      const odg = await fetch('/kartica');
+      const podaci = await odg.json();
+      if (!odg.ok) throw new Error(podaci.greska);
+      fajloviKartice = podaci.fajlovi;
+    } catch (e) {
+      $('#galerijaInfo').textContent = '';
+      mreza.innerHTML = `<p class="prazno">Kartica se ne čita: ${e.message}</p>`;
+      return;
+    }
+    const prikazani = bezDuplikata(fajloviKartice);
+    $('#galerijaInfo').textContent = `${fajloviKartice.length} fajlova na kartici. Klik bira, dvoklik otvara.`;
+    mreza.innerHTML = prikazani.length
+      ? prikazani.map((f) => plocica({
+          ime: f.ime, velicinaB: f.velicina, naMacu: f.na_macu, kljuc: f.putanja,
+          slicica: '/kartica/slicica?putanja=' + encodeURIComponent(f.putanja),
+        })).join('')
+      : '<p class="prazno">Kartica je prazna.</p>';
+  } else {
+    const { snimci } = await (await fetch('/snimci')).json();
+    const prikazani = bezDuplikata(snimci.map((s) => ({ ...s })));
+    $('#galerijaInfo').textContent = `${snimci.length} fajlova u folderu snimci/. Klik otvara.`;
+    mreza.innerHTML = prikazani.length
+      ? prikazani.map((f) => plocica({
+          ime: f.ime, velicinaB: f.velicina, naMacu: false, kljuc: f.pregled || f.ime,
+          slicica: '/slicica/' + encodeURIComponent(f.ime),
+        })).join('')
+      : '<p class="prazno">Još ništa nije prebačeno.</p>';
+  }
+  azurirajDugmePrebaci();
+}
+
+function otvori(kljuc, ime) {
+  if (tab === 'mac') {
+    return jeVideo(ime) ? pustiVideo(kljuc) : window.open('/snimci/' + ime, '_blank');
+  }
+  // Sa kartice: prvo se prebaci, pa otvori.
+  prebaci([kljuc]).then(() => {
+    const fajl = fajloviKartice.find((f) => f.putanja === kljuc);
+    if (fajl && jeVideo(fajl.ime)) pustiVideo(poslednjiPregled[fajl.ime] || fajl.ime);
+    else window.open('/snimci/' + ime, '_blank');
+  });
+}
+
+const poslednjiPregled = {};
+
+async function prebaci(putanje) {
+  const dugme = $('#prebaci');
+  dugme.disabled = true;
+  let gotovo = 0;
+  for (const putanja of putanje) {
+    dugme.textContent = `Prebacujem ${gotovo + 1} od ${putanje.length}…`;
+    const podaci = await posalji('/preuzmi?putanja=' + encodeURIComponent(putanja));
+    if (podaci.pregled) poslednjiPregled[podaci.ime] = podaci.pregled;
+    gotovo++;
+  }
+  dugme.disabled = false;
+  izabrani.clear();
+  poruka(`Prebačeno: ${gotovo}`);
+  await ucitajGaleriju();
+}
+
+$('#mreza').onclick = (e) => {
+  const p = e.target.closest('.plocica');
+  if (!p) return;
+  if (tab === 'mac') return otvori(p.dataset.kljuc, p.dataset.ime);
+  izabrani.has(p.dataset.kljuc) ? izabrani.delete(p.dataset.kljuc) : izabrani.add(p.dataset.kljuc);
+  p.classList.toggle('izabrana');
+  azurirajDugmePrebaci();
+};
+
+$('#mreza').ondblclick = (e) => {
+  const p = e.target.closest('.plocica');
+  if (p && tab === 'aparat') otvori(p.dataset.kljuc, p.dataset.ime);
+};
+
+document.querySelectorAll('.galerija .tab').forEach((b) => {
+  b.onclick = () => {
+    tab = b.dataset.tab;
+    document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t === b));
+    izabrani.clear();
+    ucitajGaleriju();
+  };
+});
+
+$('#izaberiNovo').onclick = () => {
+  bezDuplikata(fajloviKartice).filter((f) => !f.na_macu).forEach((f) => izabrani.add(f.putanja));
+  document.querySelectorAll('.plocica').forEach((p) => p.classList.toggle('izabrana', izabrani.has(p.dataset.kljuc)));
+  azurirajDugmePrebaci();
+};
+
+$('#prebaci').onclick = () => prebaci([...izabrani]);
+$('#osveziGaleriju').onclick = ucitajGaleriju;
+$('#samoSlike input').onchange = ucitajGaleriju;
+
+async function proveriAparat() {
+  const { model } = await (await fetch('/status')).json();
+  $('#status').textContent = model ? 'Povezan: ' + model : 'Aparat nije pronađen. Proveri USB i da li je uključen.';
+  return !!model;
+}
+
+$('#osvezi').onclick = ucitajPodesavanja;
+
+// Pri zatvaranju stranice aparat izlazi iz živog prikaza, da ne troši bateriju.
+window.addEventListener('pagehide', () => navigator.sendBeacon('/ugasi-prikaz'));
+
+(async () => {
+  prikaz(false, false);
+  if (await proveriAparat()) {
+    prikaz(true);
+    ucitajPodesavanja();
+    ucitajGaleriju();
+  } else {
+    $('#podesavanja').innerHTML = '';
+    tab = 'mac';
+    document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t.dataset.tab === 'mac'));
+    ucitajGaleriju();
+  }
+})();
+</script>
+</body>
+</html>
