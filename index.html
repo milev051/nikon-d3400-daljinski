@@ -76,6 +76,10 @@
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--sivo); margin: 0 0 10px; }
   label { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 6px; font-size: 14px; }
   select { width: 100%; min-width: 0; text-overflow: ellipsis; background: #111; color: var(--tekst); border: 1px solid #333; border-radius: 4px; padding: 5px; font: inherit; }
+  #podesavanja .podesavanje-red { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; gap: 6px; margin-bottom: 7px; font-size: 13px; }
+  .kontrola-podesavanja { display: flex; align-items: center; gap: 3px; min-width: 0; }
+  .kontrola-podesavanja select { flex: 1; width: 1%; padding: 4px 2px; font-size: 12px; }
+  .korak-podesavanja { flex: 0 0 22px; height: 28px; padding: 0; font-size: 16px; line-height: 1; }
   .galerija { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; padding: 10px; background: var(--pov); border-radius: 8px; }
   .galerija h2 { margin-bottom: 0; }
   .galerija .traka { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -521,17 +525,55 @@ async function ucitajPodesavanja() {
     if (!odg.ok) throw new Error(podaci.greska);
     el.innerHTML = '';
     for (const p of podaci.podesavanja) {
-      const red = document.createElement('label');
+      const red = document.createElement('div');
+      red.className = 'podesavanje-red';
       red.innerHTML = `<span>${NAZIVI[p.ime] || p.naziv}</span>`;
       const izbor = document.createElement('select');
       izbor.disabled = p.samo_citanje;
       for (const v of p.izbor) izbor.add(new Option(prikaziVrednost(p.ime, v), v, false, v === p.vrednost));
-      izbor.onchange = async () => {
-        if (p.ime === 'f-number' && prikazUkljucen) poruka('Menjam blendu, živi prikaz se na trenutak gasi…');
-        await posalji(`/postavi?ime=${encodeURIComponent(p.ime)}&vrednost=${encodeURIComponent(izbor.value)}`);
-        poruka(`${NAZIVI[p.ime] || p.naziv}: ${prikaziVrednost(p.ime, izbor.value)}`);
+      const kontrola = document.createElement('div');
+      kontrola.className = 'kontrola-podesavanja';
+      const prethodno = document.createElement('button');
+      prethodno.type = 'button';
+      prethodno.className = 'korak-podesavanja';
+      prethodno.textContent = '−';
+      prethodno.title = 'Prethodna vrednost';
+      prethodno.setAttribute('aria-label', `Smanji ${NAZIVI[p.ime] || p.naziv}`);
+      const sledece = document.createElement('button');
+      sledece.type = 'button';
+      sledece.className = 'korak-podesavanja';
+      sledece.textContent = '+';
+      sledece.title = 'Sledeća vrednost';
+      sledece.setAttribute('aria-label', `Povećaj ${NAZIVI[p.ime] || p.naziv}`);
+      let zauzeto = false;
+      const osveziKorake = () => {
+        prethodno.disabled = zauzeto || p.samo_citanje || izbor.selectedIndex <= 0;
+        sledece.disabled = zauzeto || p.samo_citanje || izbor.selectedIndex >= izbor.options.length - 1;
+        izbor.disabled = zauzeto || p.samo_citanje;
       };
-      red.append(izbor);
+      const pomeri = (smer) => {
+        izbor.selectedIndex = Math.max(0, Math.min(izbor.options.length - 1, izbor.selectedIndex + smer));
+        izbor.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      prethodno.onclick = () => pomeri(-1);
+      sledece.onclick = () => pomeri(1);
+      izbor.onchange = async () => {
+        zauzeto = true;
+        osveziKorake();
+        if (p.ime === 'f-number' && prikazUkljucen) poruka('Menjam blendu, živi prikaz se na trenutak gasi…');
+        try {
+          await posalji(`/postavi?ime=${encodeURIComponent(p.ime)}&vrednost=${encodeURIComponent(izbor.value)}`);
+          poruka(`${NAZIVI[p.ime] || p.naziv}: ${prikaziVrednost(p.ime, izbor.value)}`);
+        } catch (_) {
+        } finally {
+          zauzeto = false;
+          osveziKorake();
+        }
+      };
+      izbor.addEventListener('change', osveziKorake);
+      kontrola.append(prethodno, izbor, sledece);
+      red.append(kontrola);
+      osveziKorake();
       el.append(red);
     }
   } catch (e) {
