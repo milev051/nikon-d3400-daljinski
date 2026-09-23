@@ -44,6 +44,13 @@
   #bioskop { position: fixed; inset: 0; background: #000e; display: none; place-items: center; z-index: 10; padding: 16px; }
   #bioskop video { max-width: 100%; max-height: 90vh; }
   #bioskop button { position: fixed; top: 12px; right: 16px; }
+  #pregledFotografije { position: fixed; z-index: 25; top: 16px; right: 16px; width: min(340px, calc(100vw - 32px)); max-height: 48vh; padding: 10px; background: #1c1c1cf5; border: 1px solid #555; border-radius: 9px; box-shadow: 0 8px 28px #000a; }
+  #pregledFotografije[hidden] { display: none; }
+  .zaglavlje-pregleda { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: var(--sivo); font-size: 12px; }
+  .zaglavlje-pregleda span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #zatvoriPregled { padding: 3px 9px; }
+  #slikaPregleda { display: block; width: 100%; max-height: 34vh; object-fit: contain; background: #090909; border-radius: 5px; }
+  #originalPregleda { display: inline-block; margin-top: 8px; color: var(--akcent); font-size: 12px; }
   #vreme { color: #f66; align-self: center; font-variant-numeric: tabular-nums; }
   .prikaz span { color: var(--sivo); }
   .prikaz button { font-size: 16px; padding: 14px 22px; }
@@ -53,7 +60,7 @@
   .glavni-red { align-items: center; }
   .glavni-red > button, .glavni-red > select { width: 100%; min-width: 0; }
   .glavni-red .razmak { display: none; }
-  #dugmeGalerija, #dugmeFlip, #format, #dugmeVodic, #dugmeMreza, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
+  #dugmeGalerija, #dugmeFlip, #dugmePregledPosle, #format, #dugmeVodic, #dugmeMreza, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
   #dugmePanel { grid-column: 1 / -1; }
   #vreme:empty { display: none; }
   .status-aparata { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; color: var(--sivo); font-size: 13px; }
@@ -139,6 +146,7 @@
       <button id="dugmePrikaz">Uključi živi prikaz</button>
       <button id="dugmePusti" title="Prekida vezu, da dugmad na aparatu rade">⏏ Pusti</button>
       <button id="dugmeFlip" aria-pressed="false">↔ Ogledalo prikaza: isključeno</button>
+      <button id="dugmePregledPosle" aria-pressed="true">▣ Pregled posle slike: uključen</button>
       <div id="akcijeSnimanja">
         <div class="akcija-snimanja">
           <button id="dugmeFoto" class="okidac" title="Slikaj" aria-label="Slikaj"></button>
@@ -174,6 +182,11 @@
 
 <div id="poruka"></div>
 <div id="bioskop"><button>Zatvori</button><video controls autoplay playsinline></video></div>
+<aside id="pregledFotografije" aria-label="Brzi pregled fotografije" hidden>
+  <div class="zaglavlje-pregleda"><span id="imePregleda">Brzi pregled</span><button id="zatvoriPregled" aria-label="Zatvori pregled">×</button></div>
+  <a id="originalPregleda" target="_blank" rel="noopener"><img id="slikaPregleda" alt="Brzi pregled fotografije"></a>
+  <a id="linkOriginalPregleda" target="_blank" rel="noopener">Otvori original u punoj rezoluciji</a>
+</aside>
 
 <script>
 const $ = (s) => document.querySelector(s);
@@ -182,6 +195,29 @@ let videoUkljucen = false;
 let vodicAktivan = false;
 let mrezaCentraAktivna = true;
 let flipPrikaza = false;
+let automatskiPregled = localStorage.getItem('automatskiPregled') !== 'ne';
+
+function postaviAutomatskiPregled(ukljucen) {
+  automatskiPregled = ukljucen;
+  const dugme = $('#dugmePregledPosle');
+  dugme.textContent = ukljucen ? '▣ Pregled posle slike: uključen' : '▣ Pregled posle slike: isključen';
+  dugme.setAttribute('aria-pressed', String(ukljucen));
+  dugme.classList.toggle('glavno', ukljucen);
+  localStorage.setItem('automatskiPregled', ukljucen ? 'da' : 'ne');
+}
+postaviAutomatskiPregled(automatskiPregled);
+$('#dugmePregledPosle').onclick = () => postaviAutomatskiPregled(!automatskiPregled);
+
+function prikaziPregledFotografije(ime) {
+  const urlOriginala = '/snimci/' + encodeURIComponent(ime);
+  const urlSlicice = '/slicica/' + encodeURIComponent(ime) + '?t=' + Date.now();
+  $('#imePregleda').textContent = ime;
+  $('#originalPregleda').href = urlOriginala;
+  $('#linkOriginalPregleda').href = urlOriginala;
+  $('#slikaPregleda').src = urlSlicice;
+  $('#pregledFotografije').hidden = false;
+}
+$('#zatvoriPregled').onclick = () => { $('#pregledFotografije').hidden = true; };
 
 function postaviGalerijuSakrivenu(sakrivena) {
   const radni = $('.radni');
@@ -419,6 +455,7 @@ let odnosSnimanja = '1.7778';
 $('#dugmeFoto').onclick = async (e) => {
   const podaci = await posalji('/okini', e.currentTarget);
   poruka('Sačuvano: ' + podaci.snimak);
+  if (automatskiPregled && podaci.snimak) prikaziPregledFotografije(podaci.snimak);
   return ucitajGaleriju();
 };
 
