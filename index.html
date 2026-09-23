@@ -571,6 +571,12 @@ async function ucitajPodesavanja() {
         }
       };
       izbor.addEventListener('change', osveziKorake);
+      izbor.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          pomeri(e.key === 'ArrowLeft' ? -1 : 1);
+        }
+      });
       kontrola.append(prethodno, izbor, sledece);
       red.append(kontrola);
       osveziKorake();
