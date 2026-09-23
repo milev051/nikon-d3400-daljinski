@@ -11,6 +11,8 @@
   #status, #baterija { color: var(--sivo); }
   #baterija { font-variant-numeric: tabular-nums; }
   .radni { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 12px; height: 100vh; padding: 12px; min-height: 0; }
+  .radni.galerija-sakrivena { grid-template-columns: minmax(0, 1fr); }
+  .radni.galerija-sakrivena > .galerija { display: none; }
   main { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; padding: 0; align-items: stretch; min-width: 0; min-height: 0; }
   .kamera { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: 0; }
   @media (max-width: 1100px) { .radni { grid-template-columns: 270px minmax(0, 1fr); } main { grid-template-columns: minmax(0, 1fr) 230px; } }
@@ -41,7 +43,7 @@
   .glavni-red { align-items: center; }
   .glavni-red > button, .glavni-red > select { width: 100%; min-width: 0; }
   .glavni-red .razmak { display: none; }
-  #format, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
+  #dugmeGalerija, #format, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
   #vreme:empty { display: none; }
   .status-aparata { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; color: var(--sivo); font-size: 13px; }
   .status-aparata b { color: var(--akcent); }
@@ -116,6 +118,7 @@
       <span id="baterija"></span>
     </section>
     <div class="kontrole glavni-red">
+      <button id="dugmeGalerija" aria-expanded="true">◀ Sakrij galeriju</button>
       <button id="dugmePrikaz">Uključi živi prikaz</button>
       <button id="dugmePusti" title="Prekida vezu, da dugmad na aparatu rade">⏏ Pusti</button>
       <div class="akcija-snimanja">
@@ -153,6 +156,20 @@ const $ = (s) => document.querySelector(s);
 let prikazUkljucen = false;
 let videoUkljucen = false;
 let vodicAktivan = false;
+
+function postaviGalerijuSakrivenu(sakrivena) {
+  const radni = $('.radni');
+  radni.classList.toggle('galerija-sakrivena', sakrivena);
+  const dugme = $('#dugmeGalerija');
+  dugme.textContent = sakrivena ? '▶ Prikaži galeriju' : '◀ Sakrij galeriju';
+  dugme.setAttribute('aria-expanded', String(!sakrivena));
+  localStorage.setItem('sakrijGaleriju', sakrivena ? 'da' : 'ne');
+}
+
+postaviGalerijuSakrivenu(localStorage.getItem('sakrijGaleriju') === 'da');
+$('#dugmeGalerija').onclick = () => {
+  postaviGalerijuSakrivenu(!$('.radni').classList.contains('galerija-sakrivena'));
+};
 
 function poruka(tekst, greska = false) {
   const el = $('#poruka');
