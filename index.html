@@ -29,6 +29,7 @@
   .prikaz { background: #000; aspect-ratio: 3 / 2; width: min(100%, calc((100vh - 50px) * 1.5)); min-width: 0; margin: 0 auto; display: grid; place-items: center; border-radius: 8px; overflow: hidden; }
   .prikaz { position: relative; }
   .prikaz img { width: 100%; height: 100%; object-fit: contain; cursor: crosshair; }
+  .prikaz img.flip { transform: scaleX(-1); }
   #okvirCeleSlike { position: absolute; z-index: 2; display: none; border: 1px solid #ffffff70; pointer-events: none; }
   #okvirCeleSlike span { position: absolute; top: 6px; right: 8px; font-size: 12px; color: var(--tekst); background: #000b; padding: 2px 6px; border-radius: 4px; }
   #mrezaCentra { position: absolute; z-index: 3; display: none; pointer-events: none; }
@@ -52,7 +53,7 @@
   .glavni-red { align-items: center; }
   .glavni-red > button, .glavni-red > select { width: 100%; min-width: 0; }
   .glavni-red .razmak { display: none; }
-  #dugmeGalerija, #format, #dugmeVodic, #dugmeMreza, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
+  #dugmeGalerija, #dugmeFlip, #format, #dugmeVodic, #dugmeMreza, #vreme, #dugmePogledaj, #dugmeAf, #osvezi { grid-column: 1 / -1; }
   #dugmePanel { grid-column: 1 / -1; }
   #vreme:empty { display: none; }
   .status-aparata { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; color: var(--sivo); font-size: 13px; }
@@ -137,6 +138,7 @@
       <button id="dugmeGalerija" aria-expanded="true">◀ Sakrij galeriju</button>
       <button id="dugmePrikaz">Uključi živi prikaz</button>
       <button id="dugmePusti" title="Prekida vezu, da dugmad na aparatu rade">⏏ Pusti</button>
+      <button id="dugmeFlip" aria-pressed="false">↔ Ogledalo prikaza: isključeno</button>
       <div id="akcijeSnimanja">
         <div class="akcija-snimanja">
           <button id="dugmeFoto" class="okidac" title="Slikaj" aria-label="Slikaj"></button>
@@ -179,6 +181,7 @@ let prikazUkljucen = false;
 let videoUkljucen = false;
 let vodicAktivan = false;
 let mrezaCentraAktivna = true;
+let flipPrikaza = false;
 
 function postaviGalerijuSakrivenu(sakrivena) {
   const radni = $('.radni');
@@ -193,6 +196,19 @@ postaviGalerijuSakrivenu(localStorage.getItem('sakrijGaleriju') === 'da');
 $('#dugmeGalerija').onclick = () => {
   postaviGalerijuSakrivenu(!$('.radni').classList.contains('galerija-sakrivena'));
 };
+
+function postaviFlipPrikaza(ukljucen) {
+  flipPrikaza = ukljucen;
+  const dugme = $('#dugmeFlip');
+  dugme.textContent = ukljucen ? '↔ Ogledalo prikaza: uključeno' : '↔ Ogledalo prikaza: isključeno';
+  dugme.classList.toggle('aktivno', ukljucen);
+  dugme.setAttribute('aria-pressed', String(ukljucen));
+  $('#prikaz img')?.classList.toggle('flip', ukljucen);
+  localStorage.setItem('flipPrikaza', ukljucen ? 'da' : 'ne');
+}
+
+postaviFlipPrikaza(localStorage.getItem('flipPrikaza') === 'da');
+$('#dugmeFlip').onclick = () => postaviFlipPrikaza(!flipPrikaza);
 
 function postaviPanelSakriven(sakriven) {
   const glavni = $('main');
@@ -272,7 +288,10 @@ function prikaz(ukljuci, obavestiServer = true) {
   okvir.innerHTML = ukljuci
     ? `<img src="/prikaz?t=${Date.now()}" alt="Živi prikaz"><div id="okvirCeleSlike"><span>Cela slika · 3:2</span></div><div id="mrezaCentra" aria-hidden="true"><i class="vertikalna" style="left:33.333%"></i><i class="vertikalna centar" style="left:50%"></i><i class="vertikalna" style="left:66.667%"></i><i class="horizontalna" style="top:33.333%"></i><i class="horizontalna centar" style="top:50%"></i><i class="horizontalna" style="top:66.667%"></i></div><div id="fokusStatus">◎ Izoštravam…</div><div id="okvirVidea"><span></span></div><div id="oznaka"></div>`
     : '<div style="text-align:center"><button class="glavno">Uključi živi prikaz</button><br><span>Dok je uključen, baterija se brže prazni</span></div>';
-  if (ukljuci) okvir.querySelector('img').onclick = izaberiTacku;
+  if (ukljuci) {
+    okvir.querySelector('img').classList.toggle('flip', flipPrikaza);
+    okvir.querySelector('img').onclick = izaberiTacku;
+  }
   else {
     okvir.querySelector('button').onclick = () => prikaz(true);
   }
@@ -335,12 +354,13 @@ function izaberiTacku(e) {
   const img = e.target;
   const okvir = img.getBoundingClientRect();
   const { levo, gore, sirina, visina } = povrsinaSlike(img);
-  const x = (e.clientX - okvir.left - levo) / sirina;
+  const vizuelniX = (e.clientX - okvir.left - levo) / sirina;
+  const x = flipPrikaza ? 1 - vizuelniX : vizuelniX;
   const y = (e.clientY - okvir.top - gore) / visina;
-  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  if (vizuelniX < 0 || vizuelniX > 1 || y < 0 || y > 1) return;
   tacka = { x, y };
   const oznaka = $('#oznaka');
-  oznaka.style.left = levo + x * sirina + 'px';
+  oznaka.style.left = levo + vizuelniX * sirina + 'px';
   oznaka.style.top = gore + y * visina + 'px';
   oznaka.style.display = 'block';
   posalji(`/tacka?x=${x.toFixed(4)}&y=${y.toFixed(4)}`)
