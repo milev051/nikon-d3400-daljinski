@@ -47,6 +47,16 @@ sistem. Homebrew nije potreban.
   pa su širi formati vodič za kadriranje i sečenje u montaži. Okvir je
   približan: po sredini, cela širina.
 - Slika odmah ide na Mac.
+- Serijsko slikanje: izaberi broj NEF fotografija i najmanji razmak u
+  milisekundama (0 za bez čekanja). Prenos preko USB-a može da učini stvarni
+  razmak dužim od izabranog; serija prikazuje napredak i može da se zaustavi.
+- Aplikacija prati PTP događaje sa fizičkog dugmeta zatvarača i preuzima NEF
+  ako ga Nikon pošalje preko USB-a, i kad je živi prikaz ugašen. To treba
+  potvrditi probom na D3400; ponašanje može zavisiti od režima aparata i cilja
+  čuvanja slike.
+- Sličica poslednje fotografije ili izabrane stavke iz galerije prikazuje se u
+  malom pomerljivom panelu. Panel pamti svoju poziciju; klik na original otvara
+  sačuvani fajl.
 - Autofokus: dugme „Izoštri (AF)", taster F, ili klik na deo živog prikaza
   (pomeri tačku fokusa tamo i odmah izoštri).
   - Klik prebacuje AF zonu sa prepoznavanja lica na usku zonu, jer lica i
@@ -67,15 +77,18 @@ sistem. Homebrew nije potreban.
 - Levo je uska galerija sa sličicama u dve kolone; prikaz i kontrole su desno,
   tako da se na širokom ekranu sve vidi u jednom redu.
 - Galerija ima dve kartice:
-  - **Na kartici aparata**: sve sa SD kartice, sa veličinom i oznakom šta je
+  - **Na kartici aparata**: NEF fotografije i MOV/MP4 video sa SD kartice, sa veličinom i oznakom šta je
     već na Mac-u. Klik bira, dvoklik prebacuje i otvara. „Izaberi sve za
     proveru" pa „Proveri i prebaci". Veličina kopije se proverava, sadržaj se
     poredi kontrolnim zbirom; nepotpuna ili različita kopija se popravlja bez
-    pravljenja duplikata. Fajlovi zadržavaju ime sa aparata (DSC_…).
+    pravljenja duplikata. JPEG fotografije se preskaču. Fajlovi zadržavaju
+    originalno ime i foldere sa kartice (DCIM/.../DSC_…).
   - **Na Mac-u**: folder `snimci/`, klik otvara sliku ili pušta video.
-  - Uz NEF+JPEG se NEF po defaultu krije, da se ne vidi svaki snimak dvaput.
-  - Sličice se pamte u `snimci/.slicice/`, pa se kartica ne čita ponovo.
+  - Umanjene WebP sličice se pamte u `snimci/.slicice/`; za prikaz se koristi
+    JPEG pregled koji aparat već čuva uz fotografiju.
 - Živi prikaz se sam uključi kad se stranica otvori, a ugasi kad se zatvori.
+  Proverena veličina je 640×424 piksela pri oko 15 kadrova u sekundi; to nije
+  puna rezolucija fotografije. Najveća fotografija je 6000×4000 piksela.
 - Osvežavanje stranice ili dugme „Osveži vezu" prekida zastarelu USB vezu i
   ponovo pokušava povezivanje. Ako aparat ne može da izlista karticu, galerija
   prikaže fajlove sa Mac-a i nudi ponovno osvežavanje.
@@ -133,7 +146,7 @@ Pouzdanije je:
 
 - Prebacivanje videa ide preko USB 2.0, pa je dobro za probne snimke od
   nekoliko sekundi. Dug snimak je brže preuzeti sa kartice čitačem.
-- Živi prikaz preko USB-a je oko 640 piksela i nekoliko kadrova u sekundi.
+- Živi prikaz preko USB-a je 640×424 piksela i oko 15 kadrova u sekundi.
 - Aparat se preko USB-a ne puni i ne napaja. Dok je povezan ne ide u mirovanje,
   a živi prikaz najviše troši bateriju. Za duže snimanje postoji mrežni adapter
   EP-5A sa EH-5b ili EH-5c.

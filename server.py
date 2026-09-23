@@ -15,7 +15,7 @@ import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 import gphoto2 as gp
 
@@ -112,6 +112,53 @@ class Aparat:
         self.kamera = None
         self.zivi_prikaz = False
         self.prikaz_trazen = False
+        self.serija_zakljucavanje = threading.Lock()
+        self.serija_stop = threading.Event()
+        self.serija = {"radi": False, "ukupno": 0, "gotovo": 0, "poslednji": None, "greska": None}
+        self.spoljno_okidanje = {"broj": 0, "putanja": None}
+        threading.Thread(target=self._nadgledaj_fizicki_okidac, name="nikon-fizicki-okidac", daemon=True).start()
+
+    def _nadgledaj_fizicki_okidac(self):
+        """Prati PTP događaje sa okidača na aparatu, i uvozi NEF bez obzira na live view."""
+        while True:
+            try:
+                with self.brava:
+                    kamera = self.kamera
+                    if kamera is not None:
+                        tip, podatak = kamera.wait_for_event(1 if self.zivi_prikaz else 250)
+                        if tip == gp.GP_EVENT_FILE_ADDED and Path(podatak.name).suffix.lower() == ".nef":
+                            self._preuzmi_spoljni_nef(kamera, podatak)
+            except gp.GPhoto2Error:
+                with self.brava:
+                    self._prekini()
+                time.sleep(0.5)
+            time.sleep(0.08 if self.zivi_prikaz else 0.12)
+
+    def _preuzmi_spoljni_nef(self, kamera, putanja):
+        relativna = self.lokalna_putanja_kamere(putanja.folder, putanja.name)
+        cilj = SNIMCI / relativna
+        cilj.parent.mkdir(parents=True, exist_ok=True)
+        info_omotac = kamera.file_get_info(putanja.folder, putanja.name)
+        info = info_omotac.file
+        podaci = kamera.file_get(putanja.folder, putanja.name, gp.GP_FILE_TYPE_NORMAL).get_data_and_size()
+        if len(podaci) != info.size:
+            return
+        with tempfile.NamedTemporaryFile(dir=cilj.parent, prefix=".okidac-", delete=False) as izlaz:
+            privremeno = Path(izlaz.name)
+            izlaz.write(podaci)
+        os.replace(privremeno, cilj)
+        stat = cilj.stat()
+        prenosi = provereni_prenosi()
+        prenosi[putanja.folder.rstrip("/") + "/" + putanja.name] = {
+            "velicina_kartice": info.size,
+            "mtime_kartice": info.mtime,
+            "velicina_maca": stat.st_size,
+            "mtime_ns": stat.st_mtime_ns,
+            "sha256": kontrolni_zbir(cilj),
+        }
+        sacuvaj_proverene_prenose(prenosi)
+        self.spoljno_okidanje["broj"] += 1
+        self.spoljno_okidanje["putanja"] = relativna.as_posix()
 
     def _povezi(self):
         if self.kamera is not None:
@@ -202,8 +249,16 @@ class Aparat:
 
         self.izvrsi(radnja)
 
-    def okini(self, folder=SNIMCI):
-        """Okida i prebacuje snimak. Uz NEF+JPEG stižu dva fajla, vraća se ime JPEG-a."""
+    @staticmethod
+    def lokalna_putanja_kamere(folder, ime):
+        """Čuva strukturu DCIM sa kartice, bez internog PTP imena memorije."""
+        delovi = [deo for deo in folder.split("/") if deo and deo not in (".", "..")] + [ime]
+        if delovi and delovi[0].lower().startswith("store_"):
+            delovi = delovi[1:]
+        return Path(*delovi) if delovi else Path(ime)
+
+    def okini(self):
+        """Okida i čuva originalna imena/foldere; JPEG se preskače kada postoji NEF."""
 
         def radnja(k):
             putanje = [k.capture(gp.GP_CAPTURE_IMAGE)]
@@ -214,17 +269,57 @@ class Aparat:
                     break
                 if tip == gp.GP_EVENT_FILE_ADDED:
                     putanje.append(podatak)
-            osnova = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            imena = []
-            for putanja in putanje:
-                ime = osnova + (Path(putanja.name).suffix.lower() or ".jpg")
+            nef_putanje = [p for p in putanje if Path(p.name).suffix.lower() == ".nef"]
+            poslednja_putanja = None
+            for putanja in nef_putanje:
+                odrediste = SNIMCI / self.lokalna_putanja_kamere(putanja.folder, putanja.name)
+                odrediste.parent.mkdir(parents=True, exist_ok=True)
                 fajl = k.file_get(putanja.folder, putanja.name, gp.GP_FILE_TYPE_NORMAL)
-                fajl.save(str(folder / ime))
-                imena.append(ime)
-            jpeg = [ime for ime in imena if ime.endswith((".jpg", ".jpeg"))]
-            return (jpeg or imena)[0]
+                fajl.save(str(odrediste))
+                poslednja_putanja = odrediste.relative_to(SNIMCI).as_posix()
+            if not poslednja_putanja:
+                raise RuntimeError("Okidanje je uspelo, ali nije pronađen NEF fajl za preuzimanje")
+            return poslednja_putanja
 
         return self.izvrsi(radnja)
+
+    def pokreni_seriju(self, broj, interval_ms):
+        broj = max(1, min(500, int(broj)))
+        interval_ms = max(0, min(60000, int(interval_ms)))
+        with self.serija_zakljucavanje:
+            if self.serija["radi"]:
+                raise RuntimeError("Serijsko slikanje je već pokrenuto")
+            self.serija_stop.clear()
+            self.serija = {"radi": True, "ukupno": broj, "gotovo": 0, "poslednji": None, "greska": None}
+
+        def snimaj():
+            try:
+                for _ in range(broj):
+                    if self.serija_stop.is_set():
+                        break
+                    pocetak = time.monotonic()
+                    ime = self.okini()
+                    self.serija["gotovo"] += 1
+                    self.serija["poslednji"] = ime
+                    preostalo = interval_ms / 1000 - (time.monotonic() - pocetak)
+                    if preostalo > 0 and self.serija_stop.wait(preostalo):
+                        break
+            except Exception as greska:
+                self.serija["greska"] = str(greska)
+            finally:
+                with self.serija_zakljucavanje:
+                    self.serija["radi"] = False
+
+        threading.Thread(target=snimaj, name="nikon-serijsko-slikanje", daemon=True).start()
+        return self.stanje_serije()
+
+    def zaustavi_seriju(self):
+        self.serija_stop.set()
+        return self.stanje_serije()
+
+    def stanje_serije(self):
+        with self.serija_zakljucavanje:
+            return dict(self.serija)
 
     def tacka_fokusa(self, x, y):
         """Pomera tačku fokusa na deo kadra, x i y su od 0 do 1."""
@@ -345,7 +440,7 @@ class Aparat:
 
         prenosi = provereni_prenosi()
         for fajl in fajlovi:
-            lokalni = SNIMCI / fajl["ime"]
+            lokalni = SNIMCI / self.lokalna_putanja_kamere(*fajl["putanja"].rsplit("/", 1))
             zapis = prenosi.get(fajl["putanja"], {})
             fajl["velicina_maca"] = lokalni.stat().st_size if lokalni.is_file() else 0
             velicina_kopije = zapis.get("velicina_maca")
@@ -370,9 +465,15 @@ class Aparat:
         return {"fajlovi": fajlovi}
 
     def slicica_sa_kartice(self, putanja):
-        """Sličica koju aparat već čuva uz svaki snimak. Pamti se na disku, da se ne čita ponovo."""
+        """Sličica sa aparata se čuva lokalno kao WebP kada je enkoder dostupan."""
         folder, ime = putanja.rsplit("/", 1)
-        kes = SLICICE / ("kartica" + folder.replace("/", "_") + "_" + ime + ".jpg")
+        kljuc = hashlib.sha256(putanja.encode()).hexdigest()
+        kes = SLICICE / ("kartica-" + kljuc + ".webp")
+        jpg = kes.with_suffix(".jpg")
+        if kes.is_file():
+            return kes
+        if jpg.is_file():
+            return jpg
         if not kes.is_file():
 
             def radnja(k):
@@ -381,7 +482,8 @@ class Aparat:
 
             podaci = self.izvrsi(radnja)
             SLICICE.mkdir(parents=True, exist_ok=True)
-            kes.write_bytes(podaci)
+            jpg.write_bytes(podaci)
+            return konvertuj_u_webp(jpg, kes, 480) or jpg
         return kes
 
     def preuzmi_sa_kartice(self, putanja):
@@ -391,10 +493,15 @@ class Aparat:
         folder, ime = putanja.rsplit("/", 1)
         if not ime or ime in (".", "..") or Path(ime).name != ime:
             raise RuntimeError("Ime fajla sa kartice nije ispravno")
+        if Path(ime).suffix.lower() in (".jpg", ".jpeg"):
+            raise RuntimeError("JPEG fotografije se ne prebacuju; izaberi NEF ili video")
+        if Path(ime).suffix.lower() not in (".nef", ".mov", ".mp4"):
+            raise RuntimeError("Podržani su NEF fotografije i MOV/MP4 snimci")
         SNIMCI.mkdir(parents=True, exist_ok=True)
-        cilj = SNIMCI / ime
+        cilj = SNIMCI / self.lokalna_putanja_kamere(folder, ime)
+        cilj.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
-            dir=SNIMCI, prefix=".preuzimanje-", suffix=Path(ime).suffix, delete=False
+            dir=cilj.parent, prefix=".preuzimanje-", suffix=Path(ime).suffix, delete=False
         ) as privremeni:
             privremena_putanja = Path(privremeni.name)
         privremena_putanja.unlink()
@@ -459,7 +566,7 @@ class Aparat:
                 privremena_putanja.unlink()
 
         pregled = napravi_pregled(cilj) if cilj.suffix.lower() == ".mov" else None
-        return {"ime": ime, "pregled": pregled, "stanje": stanje}
+        return {"ime": ime, "putanja": cilj.relative_to(SNIMCI).as_posix(), "pregled": pregled, "stanje": stanje}
 
     def podesavanja(self):
         def radnja(k):
@@ -524,20 +631,44 @@ def nadji_ffmpeg():
 
 
 def lokalna_slicica(fajl):
-    """Sličica za fajl na Mac-u: slike i NEF preko sips, video preko ffmpeg. Pamti se na disku."""
-    kes = SLICICE / (fajl.name + ".jpg")
+    """Pravi umanjenu WebP sličicu i pamti je pod putanjom relativnom prema snimci/."""
+    kljuc = hashlib.sha256(fajl.relative_to(SNIMCI).as_posix().encode()).hexdigest()
+    kes = SLICICE / (kljuc + ".webp")
+    jpg = kes.with_suffix(".jpg")
     if kes.is_file() and kes.stat().st_mtime >= fajl.stat().st_mtime:
         return kes
     SLICICE.mkdir(parents=True, exist_ok=True)
     if fajl.suffix.lower() in (".mov", ".mp4"):
         ffmpeg = nadji_ffmpeg()
-        if ffmpeg is None:
-            return None
-        naredba = [ffmpeg, "-y", "-v", "error", "-i", str(fajl), "-frames:v", "1", "-vf", "scale=480:-2", str(kes)]
-    else:
-        naredba = ["sips", "-s", "format", "jpeg", "-Z", "480", str(fajl), "--out", str(kes)]
-    subprocess.run(naredba, capture_output=True)
-    return kes if kes.is_file() else None
+        if ffmpeg:
+            rezultat = subprocess.run(
+                [ffmpeg, "-y", "-v", "error", "-i", str(fajl), "-frames:v", "1", "-vf", "scale=480:-2", "-c:v", "libwebp", "-quality", "72", str(kes)],
+                capture_output=True,
+            )
+            if rezultat.returncode == 0 and kes.is_file():
+                return kes
+        return None
+    privremeni = SLICICE / (kljuc + "-izvor.jpg")
+    rezultat = subprocess.run(["sips", "-s", "format", "jpeg", "-Z", "480", str(fajl), "--out", str(privremeni)], capture_output=True)
+    if rezultat.returncode != 0 or not privremeni.is_file():
+        return None
+    webp = konvertuj_u_webp(privremeni, kes, 480)
+    if not webp:
+        os.replace(privremeni, jpg)
+        return jpg
+    privremeni.unlink(missing_ok=True)
+    return webp
+
+
+def konvertuj_u_webp(izvor, odrediste, sirina):
+    ffmpeg = nadji_ffmpeg()
+    if not ffmpeg:
+        return None
+    rezultat = subprocess.run(
+        [ffmpeg, "-y", "-v", "error", "-i", str(izvor), "-frames:v", "1", "-vf", f"scale={sirina}:-2", "-c:v", "libwebp", "-quality", "72", str(odrediste)],
+        capture_output=True,
+    )
+    return odrediste if rezultat.returncode == 0 and odrediste.is_file() else None
 
 
 def napravi_pregled(video):
@@ -546,7 +677,8 @@ def napravi_pregled(video):
     if ffmpeg is None:
         return None
     PREGLEDI.mkdir(parents=True, exist_ok=True)
-    izlaz = PREGLEDI / (video.stem + ".mp4")
+    relativna = video.relative_to(SNIMCI).as_posix()
+    izlaz = PREGLEDI / (hashlib.sha256(relativna.encode()).hexdigest() + ".mp4")
     rezultat = subprocess.run(
         [ffmpeg, "-y", "-v", "error", "-i", str(video), "-c:v", "copy", "-c:a", "aac", "-movflags", "+faststart", str(izlaz)],
         capture_output=True,
@@ -612,39 +744,53 @@ class Zahtev(BaseHTTPRequestHandler):
             return self._obradi(lambda: {"podesavanja": aparat.podesavanja()})
         if url.path == "/snimci":
             fajlovi = sorted(
-                (f for f in SNIMCI.iterdir() if f.is_file() and not f.name.startswith(".")),
+                (
+                    f for f in SNIMCI.rglob("*")
+                    if f.is_file()
+                    and not any(deo.startswith(".") or deo == "pregled" for deo in f.relative_to(SNIMCI).parts)
+                    and f.suffix.lower() in (".nef", ".mov", ".mp4")
+                ),
                 key=lambda f: f.stat().st_mtime,
                 reverse=True,
-            )
+            ) if SNIMCI.exists() else []
             snimci = []
             for fajl in fajlovi:
-                pregled = PREGLEDI / (fajl.stem + ".mp4")
+                relativna = fajl.relative_to(SNIMCI).as_posix()
+                pregled = PREGLEDI / (hashlib.sha256(relativna.encode()).hexdigest() + ".mp4")
                 snimci.append(
                     {
                         "ime": fajl.name,
+                        "putanja": relativna,
                         "velicina": fajl.stat().st_size,
                         "pregled": f"pregled/{pregled.name}" if pregled.is_file() else None,
                     }
                 )
             return self._json({"snimci": snimci})
         if url.path.startswith("/slicica/"):
-            fajl = SNIMCI / Path(url.path).name
+            fajl = (SNIMCI / unquote(url.path[len("/slicica/"):])).resolve()
+            if not fajl.is_relative_to(SNIMCI.resolve()):
+                return self._json({"greska": "Neispravna putanja"}, 400)
             kes = lokalna_slicica(fajl) if fajl.is_file() else None
             if kes is not None:
-                return self._fajl(kes, "image/jpeg")
+                return self._fajl(kes, "image/webp" if kes.suffix == ".webp" else "image/jpeg")
         if url.path == "/kartica":
             return self._obradi(aparat.sadrzaj_kartice)
         if url.path == "/kartica/slicica":
             try:
-                return self._fajl(aparat.slicica_sa_kartice(parse_qs(url.query)["putanja"][0]), "image/jpeg")
+                kes = aparat.slicica_sa_kartice(parse_qs(url.query)["putanja"][0])
+                return self._fajl(kes, "image/webp" if kes.suffix == ".webp" else "image/jpeg")
             except (gp.GPhoto2Error, KeyError):
                 return self._json({"greska": "Aparat nema sličicu za ovaj fajl"}, 404)
         if url.path.startswith("/snimci/"):
-            delovi = Path(url.path).parts
-            folder = PODFOLDERI.get(delovi[2], SNIMCI) if len(delovi) > 3 else SNIMCI
-            fajl = folder / delovi[-1]
+            fajl = (SNIMCI / unquote(url.path[len("/snimci/"):])).resolve()
+            if not fajl.is_relative_to(SNIMCI.resolve()):
+                return self._json({"greska": "Neispravna putanja"}, 400)
             if fajl.is_file():
                 return self._fajl(fajl, TIPOVI.get(fajl.suffix.lower(), "application/octet-stream"))
+        if url.path == "/serija/status":
+            return self._json(aparat.stanje_serije())
+        if url.path == "/spoljni-okidaci":
+            return self._json(dict(aparat.spoljno_okidanje))
         if url.path == "/prikaz":
             return self._zivi_prikaz()
         self._json({"greska": "Nije pronađeno"}, 404)
@@ -655,6 +801,8 @@ class Zahtev(BaseHTTPRequestHandler):
         radnje = {
             "/povezi": lambda: {"model": aparat.povezi_ponovo()},
             "/okini": lambda: {"snimak": aparat.okini()},
+            "/serija/start": lambda: aparat.pokreni_seriju(upit.get("broj", "1"), upit.get("interval", "1000")),
+            "/serija/stop": lambda: aparat.zaustavi_seriju(),
             "/tacka": lambda: aparat.tacka_fokusa(upit["x"], upit["y"]),
             "/autofokus": lambda: aparat.autofokus(),
             "/fokus": lambda: aparat.rucni_fokus(upit.get("korak", 0)),
