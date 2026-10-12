@@ -1,5 +1,11 @@
 # Nikon D3400 daljinski
 
+> **English:** Browser-based remote control for a Nikon D3400 camera connected to
+> a Mac over USB: live view, focus and exposure settings, and shooting from
+> `http://localhost:8400` without touching the camera. Runs locally on macOS; a
+> Python server (python-gphoto2 / libgphoto2) with a plain HTML/JavaScript
+> front end. The rest of this README is in Serbian.
+
 Javni GitHub repozitorijum za aplikaciju. Ovo nije javno hostovan upravljački
 sajt: aplikacija mora da radi na Mac-u koji je USB kablom povezan sa aparatom.
 GitHub Pages ne može da pristupi USB uređaju niti lokalnom serveru.
