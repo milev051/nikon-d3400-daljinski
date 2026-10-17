@@ -15,5 +15,7 @@
 - Spajanje `hdr.py` (Mertens fusion, NEF preko rawpy u 16 bita) → `snimci/hdr/HDR_*.tif` + `.jpg`. Proba 3×JPEG prošla.
 - „HDR auto sredina”: ISO na najniži (auto ISO isključen), probni snimci (brišu se) mere svetlo, bira srednji zatvarač; blenda ostaje. Proba prošla (10 s → 4 s).
 - Posle uspešnog HDR spajanja snimci serije (i JPEG parovi) se brišu sa kartice; originali ostaju u snimci/DCIM.
+- Aparat posle brisanja ponovo koristi iste brojeve; lokalni fajl se više ne prepisuje (dobija _2).
+- 17.10: HDR izvori DSC_0008–0031 obrisani sa kartice i premešteni u Smeće (~/.Trash/HDR-izvori-D3400).
 - 5 NEF snimaka traži oko 3 GB RAM-a i oko 40 s spajanja.
 - Otvoreno: automatsko gašenje prikaza pri okidanju duge ekspozicije (čeka odluku).

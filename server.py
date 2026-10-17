@@ -38,6 +38,16 @@ PORT = 8400
 FOTO = (".nef", ".jpg", ".jpeg")
 
 
+def slobodna_putanja(cilj):
+    """Aparat posle brisanja ponovo koristi iste brojeve (DSC_0029…), pa se postojeći snimak ne prepisuje."""
+    if not cilj.exists():
+        return cilj
+    broj = 2
+    while (novi := cilj.with_name(f"{cilj.stem}_{broj}{cilj.suffix}")).exists():
+        broj += 1
+    return novi
+
+
 def bez_jpeg_parova(putanje, folder_i_ime):
     """Zadržava NEF; JPEG samo kad uz njega nema NEF-a istog imena (snimanje samo u JPEG)."""
     nef = {(f, Path(i).stem.lower()) for f, i in map(folder_i_ime, putanje) if Path(i).suffix.lower() == ".nef"}
@@ -160,7 +170,8 @@ class Aparat:
 
     def _preuzmi_spoljni_nef(self, kamera, putanja):
         relativna = self.lokalna_putanja_kamere(putanja.folder, putanja.name)
-        cilj = SNIMCI / relativna
+        cilj = slobodna_putanja(SNIMCI / relativna)
+        relativna = cilj.relative_to(SNIMCI)
         cilj.parent.mkdir(parents=True, exist_ok=True)
         info_omotac = kamera.file_get_info(putanja.folder, putanja.name)
         info = info_omotac.file
@@ -303,7 +314,7 @@ class Aparat:
                 return [p.folder.rstrip("/") + "/" + p.name for p in nef_putanje]
             poslednja_putanja = None
             for putanja in nef_putanje:
-                odrediste = SNIMCI / self.lokalna_putanja_kamere(putanja.folder, putanja.name)
+                odrediste = slobodna_putanja(SNIMCI / self.lokalna_putanja_kamere(putanja.folder, putanja.name))
                 odrediste.parent.mkdir(parents=True, exist_ok=True)
                 fajl = k.file_get(putanja.folder, putanja.name, gp.GP_FILE_TYPE_NORMAL)
                 fajl.save(str(odrediste))
@@ -742,6 +753,7 @@ class Aparat:
         privremena_putanja.unlink()
 
         def radnja(k):
+            nonlocal cilj
             # Omotač mora ostati živ: `info.file` je samo pogled na njegove podatke.
             info_omotac = k.file_get_info(folder, ime)
             info = info_omotac.file
@@ -782,6 +794,9 @@ class Aparat:
                 privremena_putanja.unlink()
                 stanje = "već-provereno"
             else:
+                # Veća ili jednaka postojeća kopija nije nedovršen prenos, nego drugi snimak sa istim brojem.
+                if cilj.is_file() and cilj.stat().st_size >= velicina_kartice:
+                    cilj = slobodna_putanja(cilj)
                 popravljena = cilj.is_file()
                 os.replace(privremena_putanja, cilj)
                 stanje = "popravljena-kopija" if popravljena else "preuzeto"
