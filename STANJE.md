@@ -17,5 +17,6 @@
 - Posle uspešnog HDR spajanja snimci serije (i JPEG parovi) se brišu sa kartice; originali ostaju u snimci/DCIM.
 - Aparat posle brisanja ponovo koristi iste brojeve; lokalni fajl se više ne prepisuje (dobija _2).
 - 17.10: HDR izvori DSC_0008–0031 obrisani sa kartice i premešteni u Smeće (~/.Trash/HDR-izvori-D3400).
+- HDR vremenska linija u panelu (merenje, snimci sa sličicama, spajanje); prati se i posle osvežavanja; živi prikaz se ne pali usred HDR-a.
 - 5 NEF snimaka traži oko 3 GB RAM-a i oko 40 s spajanja.
 - Otvoreno: automatsko gašenje prikaza pri okidanju duge ekspozicije (čeka odluku).

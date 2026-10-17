@@ -55,6 +55,17 @@
   #serijaKontrole input { width: 100%; padding: 6px; background: #111; color: var(--tekst); border: 1px solid #444; border-radius: 4px; font: inherit; }
   #serijaKontrole button, #stanjeSerije, #hdrKontrole button, #stanjeHdr { grid-column: 1 / -1; }
   #stanjeSerije, #stanjeHdr { min-height: 18px; color: var(--sivo); font-size: 12px; }
+  #hdrTok { grid-column: 1 / -1; display: flex; gap: 3px; }
+  #hdrTok[hidden] { display: none; }
+  #hdrTok .korak { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: var(--sivo); text-align: center; }
+  #hdrTok .korak.spajanje { flex: 1.4; }
+  #hdrTok .traka { position: relative; height: 6px; background: #333; border-radius: 3px; overflow: hidden; }
+  #hdrTok .traka i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--akcent); transition: width .6s linear; }
+  #hdrTok .korak.gotov .traka i { width: 100%; }
+  #hdrTok .korak.aktivan { color: var(--tekst); }
+  #hdrTok .korak.aktivan.neodredjen .traka i { width: 35%; animation: hdrKlizi 1.2s ease-in-out infinite alternate; }
+  @keyframes hdrKlizi { from { left: 0; } to { left: 65%; } }
+  #hdrTok .slicica { aspect-ratio: 3 / 2; background: #0a0a0a center / cover no-repeat; border-radius: 2px; }
   #vreme { color: #f66; align-self: center; font-variant-numeric: tabular-nums; }
   .prikaz span { color: var(--sivo); }
   .prikaz button { font-size: 16px; padding: 14px 22px; }
@@ -183,6 +194,7 @@
         <label>Razmak (EV)<select id="hdrKorak"><option selected>1</option><option>2</option></select></label>
         <button id="pokreniHdr" title="Srednji snimak je tvoj zatvarač">◐ Snimi HDR</button>
         <button id="pokreniHdrAuto" title="Najniži ISO, probni snimci mere svetlo i biraju srednji zatvarač; blenda ostaje tvoja">◐ HDR auto sredina</button>
+        <div id="hdrTok" hidden></div>
         <span id="stanjeHdr" aria-live="polite"></span>
       </div>
       <select id="format" title="Format kadra za video">
@@ -550,12 +562,52 @@ $('#pokreniSeriju').onclick = async (e) => {
 let intervalProvereHdr = null;
 let hdrVratiPrikaz = false;
 
+// Vremenska linija: merenje (auto), po jedan korak za svaki zatvarač sa sličicom snimka, pa spajanje.
+const sekundeZatvaraca = (v) => parseFloat(v) || 0;
+function nacrtajHdrTok(stanje) {
+  const tok = $('#hdrTok');
+  if (!stanje.faza) { tok.hidden = true; return; }
+  tok.hidden = false;
+  const koraci = [];
+  const ukupno = stanje.plan && stanje.plan.length ? stanje.plan : Array(stanje.ukupno).fill(null);
+  if (stanje.probe || stanje.faza === 'merenje') {
+    const aktivan = stanje.faza === 'merenje' && stanje.radi;
+    koraci.push({ naziv: 'Merenje' + (stanje.probe ? ' ' + stanje.probe : ''), stanje: aktivan ? 'aktivan neodredjen' : 'gotov' });
+  }
+  ukupno.forEach((v, i) => {
+    const gotov = i < stanje.gotovo;
+    const aktivan = !gotov && i === stanje.gotovo && stanje.faza === 'snimanje' && stanje.radi;
+    // Trajanje snimka: ekspozicija plus oko 4 s za upis i preuzimanje.
+    const procena = sekundeZatvaraca(v) + 4;
+    koraci.push({
+      naziv: v ? (sekundeZatvaraca(v) < 1 ? '1/' + Math.round(1 / sekundeZatvaraca(v)) : sekundeZatvaraca(v) + ' s') : String(i + 1),
+      stanje: gotov ? 'gotov' : aktivan ? 'aktivan' : '',
+      udeo: aktivan ? Math.min(0.95, stanje.proteklo / procena) : null,
+      slicica: gotov && stanje.snimci && stanje.snimci[i] ? '/slicica/' + stanje.snimci[i].split('/').map(encodeURIComponent).join('/') : null,
+    });
+  });
+  const spaja = stanje.faza === 'spajanje';
+  const procenaSpajanja = 5 * Math.max(ukupno.length, 1);
+  koraci.push({
+    naziv: spaja && stanje.radi ? 'Spajanje ' + Math.round(stanje.proteklo) + ' s' : 'Spajanje',
+    stanje: 'spajanje ' + (spaja && !stanje.radi && !stanje.greska ? 'gotov' : spaja && stanje.radi ? 'aktivan' : ''),
+    udeo: spaja && stanje.radi ? Math.min(0.95, stanje.proteklo / procenaSpajanja) : null,
+    slicica: stanje.rezultat ? '/slicica/' + stanje.rezultat.split('/').map(encodeURIComponent).join('/') : null,
+  });
+  tok.innerHTML = koraci.map((k) => `<div class="korak ${k.stanje}">
+      <div class="traka"><i${k.udeo != null ? ` style="width:${Math.round(k.udeo * 100)}%"` : ''}></i></div>
+      <span>${bezbedanTekst(k.naziv)}</span>
+      ${k.slicica ? `<div class="slicica" style="background-image:url('${k.slicica}')"></div>` : ''}
+    </div>`).join('');
+}
+
 async function osveziStanjeHdr() {
   try {
     const stanje = await (await fetch('/hdr/status')).json();
     $('#pokreniHdr').disabled = stanje.radi;
     $('#pokreniHdrAuto').disabled = stanje.radi;
     $('#dugmeFoto').disabled = stanje.radi;
+    nacrtajHdrTok(stanje);
     $('#stanjeHdr').textContent = stanje.faza === 'merenje'
       ? 'Merim svetlo probnim snimcima…'
       : (stanje.faza === 'spajanje' ? 'Spajam ' + stanje.gotovo + ' snimaka…' : 'Snimljeno: ' + stanje.gotovo + ' / ' + stanje.ukupno)
@@ -596,6 +648,10 @@ async function pokreniHdr(e, auto) {
   intervalProvereHdr = setInterval(osveziStanjeHdr, 700);
   await osveziStanjeHdr();
 }
+// HDR pokrenut pre osvežavanja stranice (ili sa drugog uređaja) i dalje se prati.
+fetch('/hdr/status').then((o) => o.json()).then((stanje) => {
+  if (stanje.radi && !intervalProvereHdr) intervalProvereHdr = setInterval(osveziStanjeHdr, 700);
+}).catch(() => {});
 $('#pokreniHdr').onclick = (e) => pokreniHdr(e, false);
 $('#pokreniHdrAuto').onclick = (e) => pokreniHdr(e, true);
 

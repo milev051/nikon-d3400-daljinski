@@ -268,7 +268,8 @@ class Aparat:
 
     def kadar(self):
         def radnja(k):
-            if not self.prikaz_trazen:
+            # Živi prikaz drži zatvarač na 1/30, pa ga drugi tab ne sme uključiti usred HDR serije.
+            if not self.prikaz_trazen or self.hdr["radi"]:
                 return None
             fajl = k.capture_preview()
             self.zivi_prikaz = True
@@ -409,6 +410,8 @@ class Aparat:
             self.hdr = {
                 "radi": True, "faza": "merenje" if auto else "snimanje", "ukupno": broj, "gotovo": 0,
                 "sredina": None, "rezultat": None, "greska": None,
+                # Za vremensku liniju u interfejsu: plan zatvarača, preuzeti snimci i početak tekućeg koraka.
+                "plan": [], "snimci": [], "probe": 0, "korak_od": time.time(),
             }
 
         def snimaj():
@@ -427,13 +430,14 @@ class Aparat:
                         plan.append(v)
                 if len(plan) < 2:
                     raise RuntimeError("Zatvarač je na kraju opsega; nema mesta za različite ekspozicije")
-                self.hdr["faza"] = "snimanje"
-                self.hdr["ukupno"] = len(plan)
+                self.hdr.update(faza="snimanje", ukupno=len(plan), plan=plan, korak_od=time.time())
                 for vrednost in plan:
                     self.izvrsi(lambda k, v=vrednost: self._postavi(k, "shutterspeed", v))
                     snimci.append(self.okini())
                     na_kartici.extend(self.poslednje_putanje_kamere)
+                    self.hdr["snimci"] = list(snimci)
                     self.hdr["gotovo"] += 1
+                    self.hdr["korak_od"] = time.time()
             except Exception as greska:
                 self.hdr["greska"] = str(greska)
             finally:
@@ -442,7 +446,7 @@ class Aparat:
                 except Exception:
                     pass
             if not self.hdr["greska"]:
-                self.hdr["faza"] = "spajanje"
+                self.hdr.update(faza="spajanje", korak_od=time.time())
                 izlaz = SNIMCI / "hdr" / datetime.now().strftime("HDR_%Y%m%d_%H%M%S")
                 rezultat = subprocess.run(
                     [sys.executable, str(KOREN / "hdr.py"), str(izlaz), *(str(SNIMCI / s) for s in snimci)],
@@ -485,6 +489,8 @@ class Aparat:
         vrednost = pocetni
         for _ in range(4):
             self._postavi(k, "shutterspeed", vrednost)
+            self.hdr["probe"] += 1
+            self.hdr["korak_od"] = time.time()
             svetlina, preeksponirano = self._probni_snimak(k)
             if preeksponirano > 0.5:
                 popravka = -3
@@ -541,7 +547,9 @@ class Aparat:
 
     def stanje_hdr(self):
         with self.serija_zakljucavanje:
-            return dict(self.hdr)
+            stanje = dict(self.hdr)
+        stanje["proteklo"] = round(time.time() - stanje.get("korak_od", time.time()), 1)
+        return stanje
 
     def stanje_serije(self):
         with self.serija_zakljucavanje:
