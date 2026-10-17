@@ -467,6 +467,16 @@ class Aparat:
                         # Posle brisanja D3400 ume da prijavi praznu karticu do nove PTP sesije.
                         with self.brava:
                             self._prekini()
+                    # Izvori se sklanjaju iz galerije u skriveni folder uz rezultat; ništa se ne briše sa Mac-a.
+                    izvori = SNIMCI / "hdr" / ".izvori" / izlaz.name
+                    izvori.mkdir(parents=True, exist_ok=True)
+                    premesteni = []
+                    for snimak in snimci:
+                        if (SNIMCI / snimak).is_file():
+                            novo = slobodna_putanja(izvori / Path(snimak).name)
+                            os.replace(SNIMCI / snimak, novo)
+                            premesteni.append(novo.relative_to(SNIMCI).as_posix())
+                    self.hdr["snimci"] = premesteni
             with self.serija_zakljucavanje:
                 self.hdr["radi"] = False
 

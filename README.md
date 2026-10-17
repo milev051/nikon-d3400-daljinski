@@ -31,6 +31,10 @@ Napravljeno 23.09.2026. Prva proba sa aparatom istog dana, rezultati u spisku is
 Prvo pokretanje instalira `gphoto2`, OpenCV i rawpy u folder `.venv` pored
 aplikacije, ne u sistem, i traje nekoliko minuta. Homebrew nije potreban.
 
+Pri svakom pokretanju `pokreni.command` preuzme novu verziju sa GitHub-a
+(`git pull`, ili arhivu ako je folder preuzet kao ZIP). Snimci i `.venv` se ne diraju.
+Bez interneta radi postojeća verzija; `NIKON_BEZ_AZURIRANJA=1` preskače proveru.
+
 ### Ako se dvoklikom ništa ne desi
 
 - macOS kaže da fajl ne može da se proveri: System Settings → Privacy & Security
@@ -181,4 +185,4 @@ kadrom, foto-štand, nivo baterije, pregled SD kartice, mreža trećina.
 
 ## HDR
 
-U M režimu, na stalku: „◐ Snimi HDR” snima 3 ili 5 snimaka sa različitim zatvaračem i spaja ih (`hdr.py`, exposure fusion) u `snimci/hdr/HDR_*.tif` (16 bita) i `.jpg`. Originali (NEF/JPEG) ostaju na Mac-u, a sa kartice se brišu posle uspešnog spajanja. „◐ HDR auto sredina” pre toga postavi najniži ISO i probnim snimcima (brišu se sa kartice) izmeri svetlo i izabere srednji zatvarač; blendu bira korisnik. Ručno: `.venv/bin/python hdr.py izlaz ulaz1 ulaz2 …`.
+U M režimu, na stalku: „◐ Snimi HDR” snima 3 ili 5 snimaka sa različitim zatvaračem i spaja ih (`hdr.py`, exposure fusion) u `snimci/hdr/HDR_*.tif` (16 bita) i `.jpg`. Originali (NEF/JPEG) se sa kartice brišu posle uspešnog spajanja, a na Mac-u se sklanjaju iz galerije u `snimci/hdr/.izvori/HDR_*/`. „◐ HDR auto sredina” pre toga postavi najniži ISO i probnim snimcima (brišu se sa kartice) izmeri svetlo i izabere srednji zatvarač; blendu bira korisnik. Ručno: `.venv/bin/python hdr.py izlaz ulaz1 ulaz2 …`.
