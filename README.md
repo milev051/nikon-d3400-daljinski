@@ -28,8 +28,17 @@ Napravljeno 23.09.2026. Prva proba sa aparatom istog dana, rezultati u spisku is
 2. Dvoklik na `pokreni.command`.
 3. Pregledač se sam otvori.
 
-Prvo pokretanje instalira paket `gphoto2` u folder `.venv` pored aplikacije, ne u
-sistem. Homebrew nije potreban.
+Prvo pokretanje instalira `gphoto2`, OpenCV i rawpy u folder `.venv` pored
+aplikacije, ne u sistem, i traje nekoliko minuta. Homebrew nije potreban.
+
+### Ako se dvoklikom ništa ne desi
+
+- macOS kaže da fajl ne može da se proveri: System Settings → Privacy & Security
+  → „Open Anyway”, ili desni klik na `pokreni.command` → Open.
+- Ili pokreni iz Terminala (prevuci folder u Terminal posle `cd `):
+  `cd ~/Desktop/nikon-d3400-daljinski && zsh pokreni.command`
+- Ako traži Command Line Tools, instaliraj ih i pokreni ponovo.
+- Prozor Terminala mora ostati otvoren dok se aplikacija koristi.
 
 ## Fajlovi
 
