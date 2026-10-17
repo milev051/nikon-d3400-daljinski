@@ -295,6 +295,7 @@ class Aparat:
                     break
                 if tip == gp.GP_EVENT_FILE_ADDED:
                     putanje.append(podatak)
+            self.poslednje_putanje_kamere = [(p.folder, p.name) for p in putanje]
             nef_putanje = bez_jpeg_parova(putanje, lambda p: (p.folder, p.name))
             if not nef_putanje:
                 raise RuntimeError("Okidanje je uspelo, ali nije pronađen NEF ni JPEG fajl za preuzimanje")
@@ -401,6 +402,7 @@ class Aparat:
 
         def snimaj():
             snimci = []
+            na_kartici = []
             sredina = pocetni
             try:
                 self.ugasi_zivi_prikaz()
@@ -419,6 +421,7 @@ class Aparat:
                 for vrednost in plan:
                     self.izvrsi(lambda k, v=vrednost: self._postavi(k, "shutterspeed", v))
                     snimci.append(self.okini())
+                    na_kartici.extend(self.poslednje_putanje_kamere)
                     self.hdr["gotovo"] += 1
             except Exception as greska:
                 self.hdr["greska"] = str(greska)
@@ -443,6 +446,9 @@ class Aparat:
                     except OSError:
                         pass
                     self.hdr["rezultat"] = jpg.relative_to(SNIMCI).as_posix()
+                    # Originali su sačuvani na Mac-u, pa se sa kartice brišu da se ne puni posle svakog HDR-a.
+                    if all((SNIMCI / s).is_file() and (SNIMCI / s).stat().st_size > 0 for s in snimci):
+                        self.hdr["obrisano"] = self.izvrsi(lambda k: self._obrisi_sa_kartice(k, na_kartici))
             with self.serija_zakljucavanje:
                 self.hdr["radi"] = False
 
@@ -477,6 +483,17 @@ class Aparat:
                 break
             vrednost = nova
         return vrednost
+
+    @staticmethod
+    def _obrisi_sa_kartice(k, putanje):
+        obrisano = 0
+        for folder, ime in putanje:
+            try:
+                k.file_delete(folder, ime)
+                obrisano += 1
+            except gp.GPhoto2Error:
+                pass
+        return obrisano
 
     @staticmethod
     def _probni_snimak(k):

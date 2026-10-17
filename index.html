@@ -567,7 +567,7 @@ async function osveziStanjeHdr() {
       if (stanje.greska) poruka('HDR nije uspeo: ' + stanje.greska, true);
       else {
         poruka('HDR je spojen: ' + stanje.rezultat);
-        $('#stanjeHdr').textContent = 'Gotovo: ' + stanje.rezultat;
+        $('#stanjeHdr').textContent = 'Gotovo: ' + stanje.rezultat + (stanje.obrisano ? ' · sa kartice obrisano ' + stanje.obrisano + ' fajlova (originali su na Mac-u)' : '');
         prikaziPregledFotografije(stanje.rezultat);
         ucitajPodesavanja();
       }

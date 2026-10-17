@@ -181,4 +181,4 @@ kadrom, foto-štand, nivo baterije, pregled SD kartice, mreža trećina.
 
 ## HDR
 
-U M režimu, na stalku: „◐ Snimi HDR” snima 3 ili 5 snimaka sa različitim zatvaračem i spaja ih (`hdr.py`, exposure fusion) u `snimci/hdr/HDR_*.tif` (16 bita) i `.jpg`. Originali (NEF/JPEG) ostaju. „◐ HDR auto sredina” pre toga postavi najniži ISO i probnim snimcima (brišu se sa kartice) izmeri svetlo i izabere srednji zatvarač; blendu bira korisnik. Ručno: `.venv/bin/python hdr.py izlaz ulaz1 ulaz2 …`.
+U M režimu, na stalku: „◐ Snimi HDR” snima 3 ili 5 snimaka sa različitim zatvaračem i spaja ih (`hdr.py`, exposure fusion) u `snimci/hdr/HDR_*.tif` (16 bita) i `.jpg`. Originali (NEF/JPEG) ostaju na Mac-u, a sa kartice se brišu posle uspešnog spajanja. „◐ HDR auto sredina” pre toga postavi najniži ISO i probnim snimcima (brišu se sa kartice) izmeri svetlo i izabere srednji zatvarač; blendu bira korisnik. Ručno: `.venv/bin/python hdr.py izlaz ulaz1 ulaz2 …`.
