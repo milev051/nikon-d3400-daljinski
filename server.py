@@ -449,6 +449,9 @@ class Aparat:
                     # Originali su sačuvani na Mac-u, pa se sa kartice brišu da se ne puni posle svakog HDR-a.
                     if all((SNIMCI / s).is_file() and (SNIMCI / s).stat().st_size > 0 for s in snimci):
                         self.hdr["obrisano"] = self.izvrsi(lambda k: self._obrisi_sa_kartice(k, na_kartici))
+                        # Posle brisanja D3400 ume da prijavi praznu karticu do nove PTP sesije.
+                        with self.brava:
+                            self._prekini()
             with self.serija_zakljucavanje:
                 self.hdr["radi"] = False
 
