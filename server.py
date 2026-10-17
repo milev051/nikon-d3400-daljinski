@@ -5,10 +5,12 @@ okidanjem, autofokusom, ručnim pomeranjem fokusa i osnovnim podešavanjima.
 """
 
 import hashlib
+import math
 import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -33,6 +35,19 @@ TIPOVI = {
     ".mov": "video/quicktime",
 }
 PORT = 8400
+FOTO = (".nef", ".jpg", ".jpeg")
+
+
+def bez_jpeg_parova(putanje, folder_i_ime):
+    """Zadržava NEF; JPEG samo kad uz njega nema NEF-a istog imena (snimanje samo u JPEG)."""
+    nef = {(f, Path(i).stem.lower()) for f, i in map(folder_i_ime, putanje) if Path(i).suffix.lower() == ".nef"}
+    rezultat = []
+    for p in putanje:
+        folder, ime = folder_i_ime(p)
+        sufiks = Path(ime).suffix.lower()
+        if sufiks == ".nef" or (sufiks in FOTO and (folder, Path(ime).stem.lower()) not in nef):
+            rezultat.append(p)
+    return rezultat
 ODNOSI = {
     "1.7778": "16:9 (FHD)",
     "1.85": "1.85:1",
@@ -115,6 +130,7 @@ class Aparat:
         self.serija_zakljucavanje = threading.Lock()
         self.serija_stop = threading.Event()
         self.serija = {"radi": False, "ukupno": 0, "gotovo": 0, "poslednji": None, "greska": None}
+        self.hdr = {"radi": False, "faza": None, "ukupno": 0, "gotovo": 0, "rezultat": None, "greska": None}
         self.spoljno_okidanje = {"broj": 0, "putanja": None}
         self.spoljne_putanje = []
         self.vreme_poslednjeg_spoljnog_okidanja = 0
@@ -128,13 +144,13 @@ class Aparat:
                     kamera = self.kamera
                     if kamera is not None:
                         tip, podatak = kamera.wait_for_event(1 if self.zivi_prikaz else 250)
-                        if tip == gp.GP_EVENT_FILE_ADDED and Path(podatak.name).suffix.lower() == ".nef":
+                        if tip == gp.GP_EVENT_FILE_ADDED and Path(podatak.name).suffix.lower() in FOTO:
                             self.spoljne_putanje.append(podatak)
                             self.vreme_poslednjeg_spoljnog_okidanja = time.monotonic()
                         if self.spoljne_putanje and time.monotonic() - self.vreme_poslednjeg_spoljnog_okidanja >= 2.5:
                             putanje = self.spoljne_putanje
                             self.spoljne_putanje = []
-                            for putanja in putanje:
+                            for putanja in bez_jpeg_parova(putanje, lambda p: (p.folder, p.name)):
                                 self._preuzmi_spoljni_nef(kamera, putanja)
             except gp.GPhoto2Error:
                 with self.brava:
@@ -241,6 +257,8 @@ class Aparat:
 
     def kadar(self):
         def radnja(k):
+            if not self.prikaz_trazen:
+                return None
             fajl = k.capture_preview()
             self.zivi_prikaz = True
             return bytes(fajl.get_data_and_size())
@@ -251,9 +269,9 @@ class Aparat:
         self.prikaz_trazen = False
 
         def radnja(k):
-            if self.zivi_prikaz:
-                self._postavi(k, "viewfinder", 0)
-                self.zivi_prikaz = False
+            # Posle ponovnog povezivanja aparat može ostati u prikazu iako je lokalna zastavica ugašena.
+            self._postavi(k, "viewfinder", 0)
+            self.zivi_prikaz = False
 
         self.izvrsi(radnja)
 
@@ -277,9 +295,9 @@ class Aparat:
                     break
                 if tip == gp.GP_EVENT_FILE_ADDED:
                     putanje.append(podatak)
-            nef_putanje = [p for p in putanje if Path(p.name).suffix.lower() == ".nef"]
+            nef_putanje = bez_jpeg_parova(putanje, lambda p: (p.folder, p.name))
             if not nef_putanje:
-                raise RuntimeError("Okidanje je uspelo, ali nije pronađen NEF fajl za preuzimanje")
+                raise RuntimeError("Okidanje je uspelo, ali nije pronađen NEF ni JPEG fajl za preuzimanje")
             if not preuzmi:
                 return [p.folder.rstrip("/") + "/" + p.name for p in nef_putanje]
             poslednja_putanja = None
@@ -303,7 +321,7 @@ class Aparat:
         broj = max(1, min(500, int(broj)))
         interval_ms = max(0, min(60000, int(interval_ms)))
         with self.serija_zakljucavanje:
-            if self.serija["radi"]:
+            if self.serija["radi"] or self.hdr["radi"]:
                 raise RuntimeError("Serijsko slikanje je već pokrenuto")
             self.serija_stop.clear()
             self.serija = {"radi": True, "faza": "snimanje", "ukupno": broj, "gotovo": 0, "sinhronizovano": 0, "poslednji": None, "greska": None}
@@ -342,6 +360,157 @@ class Aparat:
     def zaustavi_seriju(self):
         self.serija_stop.set()
         return self.stanje_serije()
+
+    def pokreni_hdr(self, broj, korak, auto=False):
+        """Snima seriju sa različitim zatvaračem (blenda i ISO ostaju isti) i spaja je u jednu sliku.
+
+        Sa auto=True pre serije postavlja najniži ISO i meri svetlo probnim snimcima, pa bira srednji zatvarač.
+        """
+        broj = int(broj) if str(broj) in ("3", "5") else 5
+        korak = float(korak) if str(korak) in ("1", "2") else 1.0
+        with self.serija_zakljucavanje:
+            if self.serija["radi"] or self.hdr["radi"]:
+                raise RuntimeError("Serija je već pokrenuta")
+
+        def procitaj(k):
+            program = k.get_single_config("expprogram").get_value()
+            zatvarac = k.get_single_config("shutterspeed")
+            izbor = [zatvarac.get_choice(i) for i in range(zatvarac.count_choices())]
+            return program, zatvarac.get_value(), izbor
+
+        program, pocetni, izbor = self.izvrsi(procitaj)
+        if program != "M":
+            raise RuntimeError("HDR radi samo u M režimu; prebaci točkić na M")
+        vremena = {}
+        for vrednost in izbor:
+            try:
+                vremena[vrednost] = float(vrednost.rstrip("s"))
+            except ValueError:
+                pass
+        if pocetni not in vremena:
+            raise RuntimeError("Postavi zatvarač na konkretno vreme (ne Bulb)")
+
+        def najblize(log_vreme):
+            return min(vremena, key=lambda v: abs(math.log2(vremena[v]) - log_vreme))
+
+        with self.serija_zakljucavanje:
+            self.hdr = {
+                "radi": True, "faza": "merenje" if auto else "snimanje", "ukupno": broj, "gotovo": 0,
+                "sredina": None, "rezultat": None, "greska": None,
+            }
+
+        def snimaj():
+            snimci = []
+            sredina = pocetni
+            try:
+                self.ugasi_zivi_prikaz()
+                if auto:
+                    sredina = self.izvrsi(lambda k: self._izmeri_sredinu(k, pocetni, vremena, najblize))
+                self.hdr["sredina"] = sredina
+                plan = []
+                for i in range(broj):
+                    v = najblize(math.log2(vremena[sredina]) + (i - broj // 2) * korak)
+                    if v not in plan:
+                        plan.append(v)
+                if len(plan) < 2:
+                    raise RuntimeError("Zatvarač je na kraju opsega; nema mesta za različite ekspozicije")
+                self.hdr["faza"] = "snimanje"
+                self.hdr["ukupno"] = len(plan)
+                for vrednost in plan:
+                    self.izvrsi(lambda k, v=vrednost: self._postavi(k, "shutterspeed", v))
+                    snimci.append(self.okini())
+                    self.hdr["gotovo"] += 1
+            except Exception as greska:
+                self.hdr["greska"] = str(greska)
+            finally:
+                try:
+                    self.izvrsi(lambda k: self._postavi(k, "shutterspeed", sredina))
+                except Exception:
+                    pass
+            if not self.hdr["greska"]:
+                self.hdr["faza"] = "spajanje"
+                izlaz = SNIMCI / "hdr" / datetime.now().strftime("HDR_%Y%m%d_%H%M%S")
+                rezultat = subprocess.run(
+                    [sys.executable, str(KOREN / "hdr.py"), str(izlaz), *(str(SNIMCI / s) for s in snimci)],
+                    capture_output=True, text=True,
+                )
+                if rezultat.returncode:
+                    self.hdr["greska"] = "Spajanje nije uspelo: " + (rezultat.stderr.strip().splitlines() or ["?"])[-1]
+                else:
+                    jpg = izlaz.with_suffix(".jpg")
+                    try:
+                        lokalna_slicica(jpg)
+                    except OSError:
+                        pass
+                    self.hdr["rezultat"] = jpg.relative_to(SNIMCI).as_posix()
+            with self.serija_zakljucavanje:
+                self.hdr["radi"] = False
+
+        threading.Thread(target=snimaj, name="nikon-hdr", daemon=True).start()
+        return self.stanje_hdr()
+
+    def _izmeri_sredinu(self, k, pocetni, vremena, najblize):
+        """Najniži ISO bez auto ISO-a, pa probni snimci dok prosečna svetlina ne bude oko srednje sive.
+
+        D3400 ne daje svetlomer preko USB-a, zato se meri sličica probnog snimka; probni snimci se brišu sa kartice.
+        """
+        try:
+            self._postavi(k, "isoauto", "Off")
+        except gp.GPhoto2Error:
+            pass
+        iso = k.get_single_config("iso")
+        brojevi = [iso.get_choice(i) for i in range(iso.count_choices()) if iso.get_choice(i).isdigit()]
+        if brojevi:
+            self._postavi(k, "iso", min(brojevi, key=int))
+        vrednost = pocetni
+        for _ in range(4):
+            self._postavi(k, "shutterspeed", vrednost)
+            svetlina, preeksponirano = self._probni_snimak(k)
+            if preeksponirano > 0.5:
+                popravka = -3
+            elif svetlina < 0.002:
+                popravka = 3
+            else:
+                popravka = max(-5, min(5, math.log2(0.18 / svetlina)))
+            nova = najblize(math.log2(vremena[vrednost]) + popravka)
+            if abs(popravka) < 0.4 or nova == vrednost:
+                break
+            vrednost = nova
+        return vrednost
+
+    @staticmethod
+    def _probni_snimak(k):
+        """Okida, čita ugrađenu sličicu i briše snimak; vraća prosečnu linearnu svetlinu i udeo pregorelih piksela."""
+        putanje = [k.capture(gp.GP_CAPTURE_IMAGE)]
+        for _ in range(50):
+            tip, podatak = k.wait_for_event(200)
+            if tip == gp.GP_EVENT_TIMEOUT:
+                break
+            if tip == gp.GP_EVENT_FILE_ADDED:
+                putanje.append(podatak)
+        import numpy as np
+        import cv2
+
+        try:
+            # Fajl mora ostati u promenljivoj dok se podaci kopiraju, inače Python oslobodi memoriju.
+            fajl = k.file_get(putanje[0].folder, putanje[0].name, gp.GP_FILE_TYPE_PREVIEW)
+            podaci = bytes(fajl.get_data_and_size())
+            slika = cv2.imdecode(np.frombuffer(podaci, np.uint8), cv2.IMREAD_GRAYSCALE)
+        finally:
+            for p in putanje:
+                try:
+                    k.file_delete(p.folder, p.name)
+                except gp.GPhoto2Error:
+                    pass
+        if slika is None:
+            raise RuntimeError("Probni snimak nema sličicu za merenje")
+        s = slika.astype(np.float32) / 255
+        linearna = np.where(s <= 0.04045, s / 12.92, ((s + 0.055) / 1.055) ** 2.4)
+        return float(linearna.mean()), float((slika >= 250).mean())
+
+    def stanje_hdr(self):
+        with self.serija_zakljucavanje:
+            return dict(self.hdr)
 
     def stanje_serije(self):
         with self.serija_zakljucavanje:
@@ -541,10 +710,8 @@ class Aparat:
         folder, ime = putanja.rsplit("/", 1)
         if not ime or ime in (".", "..") or Path(ime).name != ime:
             raise RuntimeError("Ime fajla sa kartice nije ispravno")
-        if Path(ime).suffix.lower() in (".jpg", ".jpeg"):
-            raise RuntimeError("JPEG fotografije se ne prebacuju; izaberi NEF ili video")
-        if Path(ime).suffix.lower() not in (".nef", ".mov", ".mp4"):
-            raise RuntimeError("Podržani su NEF fotografije i MOV/MP4 snimci")
+        if Path(ime).suffix.lower() not in FOTO + (".mov", ".mp4"):
+            raise RuntimeError("Podržani su NEF i JPEG fotografije i MOV/MP4 snimci")
         SNIMCI.mkdir(parents=True, exist_ok=True)
         cilj = SNIMCI / self.lokalna_putanja_kamere(folder, ime)
         cilj.parent.mkdir(parents=True, exist_ok=True)
@@ -797,11 +964,14 @@ class Zahtev(BaseHTTPRequestHandler):
             return self._obradi(lambda: {"podesavanja": aparat.podesavanja()})
         if url.path == "/snimci":
             fajlovi = sorted(
-                (
-                    f for f in SNIMCI.rglob("*")
-                    if f.is_file()
-                    and not any(deo.startswith(".") or deo == "pregled" for deo in f.relative_to(SNIMCI).parts)
-                    and f.suffix.lower() in (".nef", ".mov", ".mp4")
+                bez_jpeg_parova(
+                    [
+                        f for f in SNIMCI.rglob("*")
+                        if f.is_file()
+                        and not any(deo.startswith(".") or deo == "pregled" for deo in f.relative_to(SNIMCI).parts)
+                        and f.suffix.lower() in FOTO + (".mov", ".mp4")
+                    ],
+                    lambda f: (str(f.parent), f.name),
                 ),
                 key=lambda f: f.stat().st_mtime,
                 reverse=True,
@@ -848,6 +1018,8 @@ class Zahtev(BaseHTTPRequestHandler):
                 return self._json({"greska": "Neispravna putanja"}, 400)
             if fajl.is_file():
                 return self._fajl(fajl, TIPOVI.get(fajl.suffix.lower(), "application/octet-stream"))
+        if url.path == "/hdr/status":
+            return self._json(aparat.stanje_hdr())
         if url.path == "/serija/status":
             return self._json(aparat.stanje_serije())
         if url.path == "/spoljni-okidaci":
@@ -864,6 +1036,7 @@ class Zahtev(BaseHTTPRequestHandler):
             "/okini": lambda: {"snimak": aparat.okini()},
             "/serija/start": lambda: aparat.pokreni_seriju(upit.get("broj", "1"), upit.get("interval", "1000")),
             "/serija/stop": lambda: aparat.zaustavi_seriju(),
+            "/hdr/start": lambda: aparat.pokreni_hdr(upit.get("broj", "5"), upit.get("korak", "1"), upit.get("auto") == "1"),
             "/tacka": lambda: aparat.tacka_fokusa(upit["x"], upit["y"]),
             "/autofokus": lambda: aparat.autofokus(),
             "/fokus": lambda: aparat.rucni_fokus(upit.get("korak", 0)),
@@ -896,6 +1069,8 @@ class Zahtev(BaseHTTPRequestHandler):
             while aparat.prikaz_trazen:
                 try:
                     kadar = aparat.kadar()
+                    if kadar is None:
+                        break
                 except gp.GPhoto2Error:
                     time.sleep(0.5)
                     continue

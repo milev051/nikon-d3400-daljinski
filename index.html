@@ -49,11 +49,12 @@
   #pregledFotografije { width: min(100%, calc((100vh - 50px) * 1.5)); margin: 0 auto; scroll-margin-top: 12px; }
   #pregledFotografije[hidden] { display: none; }
   #slikaPregleda { display: block; width: 100%; max-height: calc(100vh - 50px); object-fit: contain; }
-  #serijaKontrole { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 9px; border: 1px solid #333; border-radius: 7px; }
-  #serijaKontrole label { display: flex; flex-direction: column; align-items: stretch; gap: 3px; margin: 0; color: var(--sivo); font-size: 12px; }
+  #hdrKontrole select { width: 100%; padding: 6px; background: #111; color: var(--tekst); border: 1px solid #444; border-radius: 4px; font: inherit; }
+  #serijaKontrole, #hdrKontrole { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 9px; border: 1px solid #333; border-radius: 7px; }
+  #serijaKontrole label, #hdrKontrole label { display: flex; flex-direction: column; align-items: stretch; gap: 3px; margin: 0; color: var(--sivo); font-size: 12px; }
   #serijaKontrole input { width: 100%; padding: 6px; background: #111; color: var(--tekst); border: 1px solid #444; border-radius: 4px; font: inherit; }
-  #serijaKontrole button, #stanjeSerije { grid-column: 1 / -1; }
-  #stanjeSerije { min-height: 18px; color: var(--sivo); font-size: 12px; }
+  #serijaKontrole button, #stanjeSerije, #hdrKontrole button, #stanjeHdr { grid-column: 1 / -1; }
+  #stanjeSerije, #stanjeHdr { min-height: 18px; color: var(--sivo); font-size: 12px; }
   #vreme { color: #f66; align-self: center; font-variant-numeric: tabular-nums; }
   .prikaz span { color: var(--sivo); }
   .prikaz button { font-size: 16px; padding: 14px 22px; }
@@ -176,6 +177,13 @@
         <button id="pokreniSeriju" class="glavno">▶ Pokreni seriju</button>
         <button id="zaustaviSeriju" hidden>■ Zaustavi seriju</button>
         <span id="stanjeSerije" aria-live="polite"></span>
+      </div>
+      <div id="hdrKontrole" aria-label="HDR spajanje ekspozicija" title="Samo M režim i stalak: menja zatvarač, pa spaja snimke u jednu sliku (TIFF 16 bita i JPEG u snimci/hdr)">
+        <label>HDR snimaka<select id="hdrBroj"><option>3</option><option selected>5</option></select></label>
+        <label>Razmak (EV)<select id="hdrKorak"><option selected>1</option><option>2</option></select></label>
+        <button id="pokreniHdr" title="Srednji snimak je tvoj zatvarač">◐ Snimi HDR</button>
+        <button id="pokreniHdrAuto" title="Najniži ISO, probni snimci mere svetlo i biraju srednji zatvarač; blenda ostaje tvoja">◐ HDR auto sredina</button>
+        <span id="stanjeHdr" aria-live="polite"></span>
       </div>
       <select id="format" title="Format kadra za video">
         <option value="1.7778">16:9 (FHD)</option>
@@ -352,7 +360,8 @@ async function posalji(putanja, dugme) {
 
 let tacka = { x: 0.5, y: 0.5 };
 
-function prikaz(ukljuci, obavestiServer = true) {
+async function prikaz(ukljuci, obavestiServer = true) {
+  if (obavestiServer) localStorage.setItem('nikon-zivi-prikaz', String(ukljuci));
   prikazUkljucen = ukljuci;
   const okvir = $('#prikaz');
   okvir.innerHTML = ukljuci
@@ -367,7 +376,10 @@ function prikaz(ukljuci, obavestiServer = true) {
   }
   $('#dugmePrikaz').textContent = ukljuci ? 'Ugasi živi prikaz' : 'Uključi živi prikaz';
   $('#dugmePrikaz').classList.toggle('aktivno', ukljuci);
-  if (!ukljuci && obavestiServer) posalji('/ugasi-prikaz').catch(() => {});
+  if (!ukljuci && obavestiServer) {
+    await posalji('/ugasi-prikaz');
+    await ucitajPodesavanja();
+  }
 }
 
 // Deo okvira koji zauzima sama slika, bez crnih traka koje pravi object-fit: contain.
@@ -535,6 +547,58 @@ $('#pokreniSeriju').onclick = async (e) => {
   intervalProvereSerije = setInterval(osveziStanjeSerije, 500);
   await osveziStanjeSerije();
 };
+let intervalProvereHdr = null;
+let hdrVratiPrikaz = false;
+
+async function osveziStanjeHdr() {
+  try {
+    const stanje = await (await fetch('/hdr/status')).json();
+    $('#pokreniHdr').disabled = stanje.radi;
+    $('#pokreniHdrAuto').disabled = stanje.radi;
+    $('#dugmeFoto').disabled = stanje.radi;
+    $('#stanjeHdr').textContent = stanje.faza === 'merenje'
+      ? 'Merim svetlo probnim snimcima…'
+      : (stanje.faza === 'spajanje' ? 'Spajam ' + stanje.gotovo + ' snimaka…' : 'Snimljeno: ' + stanje.gotovo + ' / ' + stanje.ukupno)
+        + (stanje.sredina ? ' · sredina ' + stanje.sredina : '');
+    if (stanje.greska) $('#stanjeHdr').textContent += ' · Greška: ' + stanje.greska;
+    if (!stanje.radi && intervalProvereHdr) {
+      clearInterval(intervalProvereHdr);
+      intervalProvereHdr = null;
+      if (stanje.greska) poruka('HDR nije uspeo: ' + stanje.greska, true);
+      else {
+        poruka('HDR je spojen: ' + stanje.rezultat);
+        $('#stanjeHdr').textContent = 'Gotovo: ' + stanje.rezultat;
+        prikaziPregledFotografije(stanje.rezultat);
+        ucitajPodesavanja();
+      }
+      if (hdrVratiPrikaz) prikaz(true);
+      ucitajGaleriju();
+    }
+  } catch (e) {
+    $('#stanjeHdr').textContent = 'Ne mogu da pročitam stanje HDR-a.';
+  }
+}
+
+async function pokreniHdr(e, auto) {
+  if (videoUkljucen) {
+    poruka('Zaustavi video pre HDR snimanja', true);
+    return;
+  }
+  // Živi prikaz drži zatvarač na 1/30, pa ga server gasi tokom serije.
+  hdrVratiPrikaz = prikazUkljucen;
+  if (prikazUkljucen) await prikaz(false, false);
+  const stanje = await posalji('/hdr/start?broj=' + $('#hdrBroj').value + '&korak=' + $('#hdrKorak').value + (auto ? '&auto=1' : ''), e.currentTarget);
+  if (!stanje) {
+    if (hdrVratiPrikaz) prikaz(true);
+    return;
+  }
+  if (intervalProvereHdr) clearInterval(intervalProvereHdr);
+  intervalProvereHdr = setInterval(osveziStanjeHdr, 700);
+  await osveziStanjeHdr();
+}
+$('#pokreniHdr').onclick = (e) => pokreniHdr(e, false);
+$('#pokreniHdrAuto').onclick = (e) => pokreniHdr(e, true);
+
 $('#zaustaviSeriju').onclick = async (e) => {
   await posalji('/serija/stop', e.currentTarget);
   await osveziStanjeSerije();
@@ -705,8 +769,18 @@ async function ucitajPodesavanja() {
         if (p.ime === 'f-number' && prikazUkljucen) poruka('Menjam blendu, živi prikaz se na trenutak gasi…');
         try {
           await posalji(`/postavi?ime=${encodeURIComponent(p.ime)}&vrednost=${encodeURIComponent(izbor.value)}`);
-          poruka(`${NAZIVI[p.ime] || p.naziv}: ${prikaziVrednost(p.ime, izbor.value)}`);
-        } catch (_) {
+          const provera = await fetch('/podesavanja');
+          const stanje = await provera.json();
+          if (!provera.ok) throw new Error(stanje.greska);
+          const stvarno = stanje.podesavanja.find((stavka) => stavka.ime === p.ime);
+          if (!stvarno || stvarno.vrednost !== izbor.value) {
+            await ucitajPodesavanja();
+            throw new Error('Aparat nije zadržao izabranu vrednost. Za duge ekspozicije ugasi živi prikaz.');
+          }
+          poruka(`${NAZIVI[p.ime] || p.naziv}: ${prikaziVrednost(p.ime, stvarno.vrednost)}`);
+        } catch (greska) {
+          poruka(greska.message, true);
+          await ucitajPodesavanja();
         } finally {
           zauzeto = false;
           osveziKorake();
@@ -740,7 +814,13 @@ const ekstenzija = (ime) => ime.split('.').pop().toLowerCase();
 const jeVideo = (ime) => ['mov', 'mp4'].includes(ekstenzija(ime));
 const bezbedanTekst = (vrednost) => String(vrednost).replace(/[&<>"']/g, (znak) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[znak]);
 
-const podrzanZaPrebacivanje = (ime) => ['nef', 'mov', 'mp4'].includes(ekstenzija(ime));
+const podrzanZaPrebacivanje = (ime) => ['nef', 'jpg', 'jpeg', 'mov', 'mp4'].includes(ekstenzija(ime));
+// JPEG se prikazuje samo kad uz njega nema NEF-a istog imena (snimanje samo u JPEG).
+const bezJpegParova = (fajlovi) => {
+  const osnova = (p) => p.replace(/\.[^./]+$/, '').toLowerCase();
+  const nef = new Set(fajlovi.filter((f) => ekstenzija(f.ime) === 'nef').map((f) => osnova(f.putanja)));
+  return fajlovi.filter((f) => podrzanZaPrebacivanje(f.ime) && !(['jpg', 'jpeg'].includes(ekstenzija(f.ime)) && nef.has(osnova(f.putanja))));
+};
 
 function plocica({ ime, velicinaB, slicica, naMacu, statusMaca, kljuc }) {
   const tip = ekstenzija(ime);
@@ -780,7 +860,7 @@ async function ucitajGaleriju() {
       document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t.dataset.tab === 'mac'));
       return ucitajGaleriju();
     }
-    const prikazani = fajloviKartice.filter((f) => podrzanZaPrebacivanje(f.ime));
+    const prikazani = bezJpegParova(fajloviKartice);
     $('#galerijaInfo').textContent = `${prikazani.length} fajlova. Klik bira; Ctrl/⌘-klik dodaje više; dvoklik prebacuje.`;
     mreza.innerHTML = prikazani.length
       ? prikazani.map((f) => plocica({
@@ -881,7 +961,7 @@ document.querySelectorAll('.galerija .tab').forEach((b) => {
 
 $('#izaberiNovo').onclick = () => {
   izabrani.clear();
-  fajloviKartice.filter((f) => podrzanZaPrebacivanje(f.ime) && f.status_maca !== 'provereno').forEach((f) => izabrani.add(f.putanja));
+  bezJpegParova(fajloviKartice).filter((f) => f.status_maca !== 'provereno').forEach((f) => izabrani.add(f.putanja));
   ucitajGaleriju();
 };
 
@@ -908,7 +988,13 @@ async function ponovoPovezi(e, obavesti = true) {
     }
     tab = 'aparat';
     document.querySelectorAll('.galerija .tab').forEach((t) => t.classList.toggle('izabran', t.dataset.tab === 'aparat'));
-    prikaz(true);
+    const odgovor = await fetch('/podesavanja');
+    const stanje = await odgovor.json();
+    if (!odgovor.ok) throw new Error(stanje.greska);
+    const zatvarac = stanje.podesavanja.find((p) => p.ime === 'shutterspeed');
+    const dugo = zatvarac && (parseFloat(zatvarac.vrednost) > 0.0334 || ['Bulb', 'Time'].includes(zatvarac.vrednost));
+    const ukljuci = !dugo && localStorage.getItem('nikon-zivi-prikaz') !== 'false';
+    await prikaz(ukljuci, false);
     await Promise.allSettled([ucitajPodesavanja(), ucitajGaleriju()]);
     if (obavesti) poruka('Veza sa aparatom je obnovljena');
   } catch (e) {

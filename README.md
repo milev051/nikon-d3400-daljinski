@@ -95,7 +95,10 @@ sistem. Homebrew nije potreban.
   - WebP sličice se prave pri prebacivanju fotografije ili videa i pamte u
     `snimci/.slicice/`. Galerija koristi male sličice, a pregled ispod živog
     prikaza traži rezoluciju prilagođenu širini prikaza (do 3840 px).
-- Živi prikaz se sam uključi kad se stranica otvori, a ugasi kad se zatvori.
+- Živi prikaz pamti da je ručno ugašen i ne uključuje se pri osvežavanju ako
+  je izabrana duga ekspozicija (sporije od 1/30 s), Bulb ili Time. Pri zatvaranju
+  stranice se gasi. Za 1″ i duže prvo ugasiti prikaz, pa izabrati zatvarač.
+  Posle promene podešavanja interfejs proverava stvarnu vrednost na aparatu.
   Proverena veličina je 640×424 piksela pri oko 15 kadrova u sekundi; to nije
   puna rezolucija fotografije. Najveća fotografija je 6000×4000 piksela.
 - Osvežavanje stranice eksplicitno prekida i ponovo uspostavlja USB vezu. Ako
@@ -166,3 +169,7 @@ Timelapse, bracketing za HDR, focus stacking, okidanje na pokret, fotografisanje
 proizvoda sa automatskom obradom u WEBP, šabloni podešavanja, upravljanje sa
 telefona preko kućne mreže (uz lozinku), stop-motion sa prozirnim prethodnim
 kadrom, foto-štand, nivo baterije, pregled SD kartice, mreža trećina.
+
+## HDR
+
+U M režimu, na stalku: „◐ Snimi HDR” snima 3 ili 5 snimaka sa različitim zatvaračem i spaja ih (`hdr.py`, exposure fusion) u `snimci/hdr/HDR_*.tif` (16 bita) i `.jpg`. Originali (NEF/JPEG) ostaju. „◐ HDR auto sredina” pre toga postavi najniži ISO i probnim snimcima (brišu se sa kartice) izmeri svetlo i izabere srednji zatvarač; blendu bira korisnik. Ručno: `.venv/bin/python hdr.py izlaz ulaz1 ulaz2 …`.
